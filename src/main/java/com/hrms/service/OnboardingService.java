@@ -44,7 +44,7 @@ public class OnboardingService {
         int offset = (page - 1) * size;
         List<OnboardingVO> records = onboardingMapper.selectPage(status, keyword, offset, size);
         int total = onboardingMapper.countPage(status, keyword);
-        return PageResult.of(total, records);
+        return PageResult.of(records,total , page, size);
     }
 
     /** 获取详情 */

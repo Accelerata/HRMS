@@ -3,6 +3,7 @@ package com.hrms.controller;
 import com.hrms.annotation.RequirePermission;
 import com.hrms.dto.ApprovalActionDTO;
 import com.hrms.dto.RegularizationSaveDTO;
+import com.hrms.result.PageResult;
 import com.hrms.result.Result;
 import com.hrms.service.RegularizationService;
 import com.hrms.vo.ExpiringEmployeeVO;
@@ -25,7 +26,7 @@ public class RegularizationController {
     private final RegularizationService regularizationService;
 
     @GetMapping("/page")
-    public Result<Object> page(
+    public Result<PageResult> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Integer status,

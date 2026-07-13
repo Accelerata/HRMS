@@ -3,6 +3,7 @@ package com.hrms.controller;
 import com.hrms.annotation.RequirePermission;
 import com.hrms.dto.ApprovalActionDTO;
 import com.hrms.dto.OnboardingSaveDTO;
+import com.hrms.result.PageResult;
 import com.hrms.result.Result;
 import com.hrms.service.OnboardingService;
 import com.hrms.vo.OnboardingResultVO;
@@ -28,7 +29,7 @@ public class OnboardingController {
     private final OnboardingService onboardingService;
 
     @GetMapping("/page")
-    public Result<Object> page(
+    public Result<PageResult> page(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Integer status,

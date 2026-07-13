@@ -44,7 +44,7 @@ public class TransferService {
         int offset = (page - 1) * size;
         List<TransferVO> records = transferMapper.selectPage(status, keyword, offset, size);
         int total = transferMapper.countPage(status, keyword);
-        return PageResult.of(total, records);
+        return PageResult.of(records, total, page, size);
     }
 
     /** 获取详情 */

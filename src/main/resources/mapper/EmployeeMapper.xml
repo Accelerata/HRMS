@@ -114,6 +114,53 @@
         </where>
     </select>
 
+    <!-- 列表查询（轻量 JOIN，只查列表所需字段，无 N+1） -->
+    <select id="selectForList" resultType="com.hrms.vo.EmployeeListVO">
+        SELECT
+            e.id,
+            e.employee_no   AS employeeNo,
+            e.name,
+            d.dept_name     AS deptName,
+            p.position_name AS positionName,
+            e.grade,
+            e.status,
+            e.entry_date    AS entryDate
+        FROM employee e
+        LEFT JOIN department d ON e.dept_id = d.id
+        LEFT JOIN position p ON e.position_id = p.id
+        <where>
+            <if test="deptId != null">
+                AND e.dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND e.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (e.name LIKE CONCAT('%', #{keyword}, '%')
+                     OR e.employee_no LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY e.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countForList" resultType="int">
+        SELECT COUNT(*)
+        FROM employee e
+        <where>
+            <if test="deptId != null">
+                AND e.dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND e.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (e.name LIKE CONCAT('%', #{keyword}, '%')
+                     OR e.employee_no LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
 
     <!-- ═══════════════ 统计分析 ═══════════════ -->
 

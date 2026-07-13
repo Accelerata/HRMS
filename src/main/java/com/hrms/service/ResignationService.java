@@ -45,7 +45,7 @@ public class ResignationService {
         int offset = (page - 1) * size;
         List<ResignationVO> records = resignationMapper.selectPage(status, keyword, offset, size);
         int total = resignationMapper.countPage(status, keyword);
-        return PageResult.of(total, records);
+        return PageResult.of(records, total, page, size);
     }
 
     /** 获取详情 */

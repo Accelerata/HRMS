@@ -2,6 +2,7 @@ package com.hrms.mapper;
 
 import com.hrms.dto.DeptEmployeeCountDTO;
 import com.hrms.entity.Employee;
+import com.hrms.vo.EmployeeListVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -44,6 +45,18 @@ public interface EmployeeMapper {
     int countByCondition(@Param("deptId") Long deptId,
                          @Param("status") Integer status,
                          @Param("keyword") String keyword);
+
+    /** 列表查询（JOIN 部门/职位，仅返回列表所需字段，无 N+1） */
+    List<EmployeeListVO> selectForList(@Param("deptId") Long deptId,
+                                       @Param("status") Integer status,
+                                       @Param("keyword") String keyword,
+                                       @Param("offset") int offset,
+                                       @Param("size") int size);
+
+    /** 列表查询总数 */
+    int countForList(@Param("deptId") Long deptId,
+                     @Param("status") Integer status,
+                     @Param("keyword") String keyword);
 
     // ────────────── 统计分析 ──────────────
 

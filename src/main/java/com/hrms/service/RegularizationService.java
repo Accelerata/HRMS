@@ -42,7 +42,7 @@ public class RegularizationService {
         int offset = (page - 1) * size;
         List<RegularizationVO> records = regularizationMapper.selectPage(status, keyword, offset, size);
         int total = regularizationMapper.countPage(status, keyword);
-        return PageResult.of(total, records);
+        return PageResult.of(records, total, page, size);
     }
 
     /** 获取详情 */

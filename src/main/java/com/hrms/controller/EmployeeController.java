@@ -2,16 +2,16 @@ package com.hrms.controller;
 
 import com.hrms.annotation.RequirePermission;
 import com.hrms.dto.EmployeeSaveDTO;
+import com.hrms.result.PageResult;
 import com.hrms.result.Result;
 import com.hrms.service.EmployeeService;
+import com.hrms.vo.EmployeeListVO;
 import com.hrms.vo.EmployeeVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 员工档案管理控制器
@@ -26,20 +26,15 @@ public class EmployeeController {
     /** 分页列表 */
     @GetMapping("/list")
     @RequirePermission("emp:view")
-    public Result<Map<String, Object>> list(
+    public Result<PageResult<EmployeeListVO>> list(
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        List<EmployeeVO> list = employeeService.list(deptId, status, keyword, page, size);
+        List<EmployeeListVO> list = employeeService.list(deptId, status, keyword, page, size);
         int total = employeeService.count(deptId, status, keyword);
-        Map<String, Object> result = new HashMap<>();
-        result.put("records", list);
-        result.put("total", total);
-        result.put("page", page);
-        result.put("size", size);
-        return Result.success(result);
+        return Result.success(PageResult.of(list, total, page, size));
     }
 
     /** 查看详情 */

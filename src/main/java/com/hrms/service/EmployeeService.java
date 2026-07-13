@@ -6,6 +6,7 @@ import com.hrms.entity.Department;
 import com.hrms.entity.Employee;
 import com.hrms.mapper.DepartmentMapper;
 import com.hrms.mapper.EmployeeMapper;
+import com.hrms.vo.EmployeeListVO;
 import com.hrms.vo.EmployeeVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,16 +35,33 @@ public class EmployeeService {
 
     // ═══════════════ 查询 ═══════════════
 
-    /** 分页列表 */
-    public List<EmployeeVO> list(Long deptId, Integer status, String keyword, int page, int size) {
+    /** 分页列表（轻量 JOIN，仅返回列表所需字段） */
+    public List<EmployeeListVO> list(Long deptId, Integer status, String keyword, int page, int size) {
         int offset = (page - 1) * size;
-        List<Employee> employees = employeeMapper.selectByCondition(deptId, status, keyword, offset, size);
-        return employees.stream().map(this::toVO).collect(Collectors.toList());
+        List<EmployeeListVO> list = employeeMapper.selectForList(deptId, status, keyword, offset, size);
+        // 填充 statusLabel
+        for (EmployeeListVO vo : list) {
+            vo.setStatusLabel(statusLabel(vo.getStatus()));
+        }
+        return list;
     }
 
     /** 分页总数 */
     public int count(Long deptId, Integer status, String keyword) {
-        return employeeMapper.countByCondition(deptId, status, keyword);
+        return employeeMapper.countForList(deptId, status, keyword);
+    }
+
+    /** 状态→文字 */
+    private String statusLabel(Integer status) {
+        if (status == null) return "未知";
+        return switch (status) {
+            case 0 -> "待入职";
+            case 1 -> "试用期";
+            case 2 -> "正式";
+            case 3 -> "待离职";
+            case 4 -> "已离职";
+            default -> "未知";
+        };
     }
 
     /** 根据ID查询 */
@@ -278,18 +296,6 @@ public class EmployeeService {
         vo.setUpdateTime(emp.getUpdateTime());
 
         return vo;
-    }
-
-    private String statusLabel(Integer status) {
-        if (status == null) return "未知";
-        return switch (status) {
-            case 0 -> "待入职";
-            case 1 -> "试用期";
-            case 2 -> "正式";
-            case 3 -> "待离职";
-            case 4 -> "已离职";
-            default -> "未知";
-        };
     }
 
     private String entryTypeLabel(Integer entryType) {
