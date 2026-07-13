@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.OvertimeRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.OvertimeRecord">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="overtime_date" property="overtimeDate"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="hours" property="hours"/>
+        <result column="converted_to_comp" property="convertedToComp"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectUnconvertedByEmployee" resultMap="BaseResultMap">
+        SELECT * FROM overtime_record
+        WHERE employee_id = #{employeeId} AND converted_to_comp = 0
+        ORDER BY overtime_date ASC
+    </select>
+
+    <select id="selectByEmployee" resultMap="BaseResultMap">
+        SELECT * FROM overtime_record
+        WHERE employee_id = #{employeeId}
+        ORDER BY overtime_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO overtime_record (
+            employee_id, overtime_date,
+            start_time, end_time, hours,
+            converted_to_comp, create_time
+        ) VALUES (
+            #{employeeId}, #{overtimeDate},
+            #{startTime}, #{endTime}, #{hours},
+            #{convertedToComp}, NOW()
+        )
+    </insert>
+
+    <update id="markAsConverted">
+        UPDATE overtime_record SET converted_to_comp = 1 WHERE id = #{id}
+    </update>
+
+    <!-- 新增：汇总某月加班小时（用于薪资核算预警） -->
+    <select id="sumHoursByMonth" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(hours), 0)
+        FROM overtime_record
+        WHERE employee_id = #{employeeId}
+          AND YEAR(overtime_date) = #{year}
+          AND MONTH(overtime_date) = #{month}
+    </select>
+
+</mapper>

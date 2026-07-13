@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.EmployeeMapper">
+
+    <!-- ═══════════════ 基础映射 ═══════════════ -->
+    <resultMap id="BaseResultMap" type="com.hrms.entity.Employee">
+        <id column="id" property="id"/>
+        <result column="employee_no" property="employeeNo"/>
+        <result column="name" property="name"/>
+        <!-- 个人信息 -->
+        <result column="gender" property="gender"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="id_card" property="idCard"/>
+        <result column="birthday" property="birthday"/>
+        <result column="registered_address" property="registeredAddress"/>
+        <result column="current_address" property="currentAddress"/>
+        <!-- 部门与职位 -->
+        <result column="dept_id" property="deptId"/>
+        <result column="position_id" property="positionId"/>
+        <result column="grade" property="grade"/>
+        <!-- 工作信息 -->
+        <result column="report_to" property="reportTo"/>
+        <result column="work_location" property="workLocation"/>
+        <result column="entry_type" property="entryType"/>
+        <!-- 薪资信息 -->
+        <result column="salary_account_id" property="salaryAccountId"/>
+        <result column="base_salary" property="baseSalary"/>
+        <result column="bank_account" property="bankAccount"/>
+        <result column="bank_name" property="bankName"/>
+        <!-- 状态与时间 -->
+        <result column="status" property="status"/>
+        <result column="entry_date" property="entryDate"/>
+        <result column="regular_date" property="regularDate"/>
+        <result column="resign_date" property="resignDate"/>
+        <result column="user_id" property="userId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 基础字段列表（避免 SELECT *） -->
+    <sql id="BaseColumns">
+        id, employee_no, name,
+        gender, phone, email, id_card, birthday, registered_address, current_address,
+        dept_id, position_id, grade,
+        report_to, work_location, entry_type,
+        salary_account_id, base_salary, bank_account, bank_name,
+        status, entry_date, regular_date, resign_date, user_id,
+        create_time, update_time
+    </sql>
+
+
+    <!-- ═══════════════ 查询 ═══════════════ -->
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE id = #{id}
+    </select>
+
+    <select id="selectByEmployeeNo" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE employee_no = #{employeeNo}
+    </select>
+
+    <select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE phone = #{phone} LIMIT 1
+    </select>
+
+    <select id="selectByIdCard" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE id_card = #{idCard} LIMIT 1
+    </select>
+
+    <select id="selectByDeptId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee
+        WHERE dept_id = #{deptId} AND status IN (1, 2, 3)
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee ORDER BY id DESC
+    </select>
+
+    <!-- 分页条件查询 -->
+    <select id="selectByCondition" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee
+        <where>
+            <if test="deptId != null">
+                AND dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                     OR employee_no LIKE CONCAT('%', #{keyword}, '%')
+                     OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByCondition" resultType="int">
+        SELECT COUNT(*) FROM employee
+        <where>
+            <if test="deptId != null">
+                AND dept_id = #{deptId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                     OR employee_no LIKE CONCAT('%', #{keyword}, '%')
+                     OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+
+    <!-- ═══════════════ 统计分析 ═══════════════ -->
+
+    <!-- 按部门+状态统计在职人数（试用期/正式/待离职） -->
+    <select id="countByDeptGroupByStatus" resultType="com.hrms.dto.DeptEmployeeCountDTO">
+        SELECT dept_id       AS deptId,
+               status        AS status,
+               COUNT(*)      AS count
+        FROM employee
+        WHERE status IN (1, 2, 3)  <!-- 1=试用期, 2=正式, 3=待离职 -->
+        GROUP BY dept_id, status
+    </select>
+
+    <select id="countByPositionId" resultType="int">
+        SELECT COUNT(*) FROM employee
+        WHERE position_id = #{positionId} AND status IN (1, 2, 3)
+    </select>
+
+    <select id="selectExpiringProbation" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee
+        WHERE status = 1
+          AND regular_date IS NOT NULL
+          AND regular_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL #{days} DAY)
+    </select>
+
+
+    <!-- ═══════════════ 写操作 ═══════════════ -->
+
+    <insert id="insert" parameterType="com.hrms.entity.Employee"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO employee (
+            employee_no, name,
+            gender, phone, email, id_card, birthday, registered_address, current_address,
+            dept_id, position_id, grade,
+            report_to, work_location, entry_type,
+            salary_account_id, base_salary, bank_account, bank_name,
+            status, entry_date, regular_date, resign_date, user_id
+        ) VALUES (
+            #{employeeNo}, #{name},
+            #{gender}, #{phone}, #{email}, #{idCard}, #{birthday}, #{registeredAddress}, #{currentAddress},
+            #{deptId}, #{positionId}, #{grade},
+            #{reportTo}, #{workLocation}, #{entryType},
+            #{salaryAccountId}, #{baseSalary}, #{bankAccount}, #{bankName},
+            #{status}, #{entryDate}, #{regularDate}, #{resignDate}, #{userId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.hrms.entity.Employee">
+        UPDATE employee
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="birthday != null">birthday = #{birthday},</if>
+            <if test="registeredAddress != null">registered_address = #{registeredAddress},</if>
+            <if test="currentAddress != null">current_address = #{currentAddress},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="positionId != null">position_id = #{positionId},</if>
+            <if test="grade != null">grade = #{grade},</if>
+            <if test="reportTo != null">report_to = #{reportTo},</if>
+            <if test="workLocation != null">work_location = #{workLocation},</if>
+            <if test="entryType != null">entry_type = #{entryType},</if>
+            <if test="salaryAccountId != null">salary_account_id = #{salaryAccountId},</if>
+            <if test="baseSalary != null">base_salary = #{baseSalary},</if>
+            <if test="bankAccount != null">bank_account = #{bankAccount},</if>
+            <if test="bankName != null">bank_name = #{bankName},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="entryDate != null">entry_date = #{entryDate},</if>
+            <if test="regularDate != null">regular_date = #{regularDate},</if>
+            <if test="resignDate != null">resign_date = #{resignDate},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM employee WHERE id = #{id}
+    </delete>
+
+</mapper>

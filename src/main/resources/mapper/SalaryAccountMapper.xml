@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.SalaryAccountMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.SalaryAccount">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="basic_salary" property="basicSalary"/>
+        <result column="position_salary" property="positionSalary"/>
+        <result column="performance_salary" property="performanceSalary"/>
+        <result column="probation_ratio" property="probationRatio"/>
+        <result column="social_insurance_base" property="socialInsuranceBase"/>
+        <result column="housing_fund_base" property="housingFundBase"/>
+        <result column="status" property="status"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, employee_id, basic_salary, position_salary, performance_salary,
+        probation_ratio, social_insurance_base, housing_fund_base,
+        status, effective_date, create_time, update_time
+    </sql>
+
+    <select id="selectByEmployeeId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM salary_account
+        WHERE employee_id = #{employeeId} AND status = 1
+        ORDER BY effective_date DESC LIMIT 1
+    </select>
+
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT sa.* FROM salary_account sa
+        INNER JOIN employee e ON sa.employee_id = e.id
+        WHERE sa.status = 1 AND e.status IN (1, 2)
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_account (
+            employee_id, basic_salary, position_salary, performance_salary,
+            probation_ratio, social_insurance_base, housing_fund_base,
+            status, effective_date, create_time, update_time
+        ) VALUES (
+            #{employeeId}, #{basicSalary}, #{positionSalary}, #{performanceSalary},
+            #{probationRatio}, #{socialInsuranceBase}, #{housingFundBase},
+            #{status}, #{effectiveDate}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE salary_account
+        SET basic_salary = #{basicSalary},
+            position_salary = #{positionSalary},
+            performance_salary = #{performanceSalary},
+            probation_ratio = #{probationRatio},
+            social_insurance_base = #{socialInsuranceBase},
+            housing_fund_base = #{housingFundBase},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="deactivate">
+        UPDATE salary_account SET status = 0, update_time = NOW() WHERE id = #{id}
+    </update>
+
+</mapper>

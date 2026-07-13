@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.SocialInsuranceConfigMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.SocialInsuranceConfig">
+        <id column="id" property="id"/>
+        <result column="city_name" property="cityName"/>
+        <result column="pension_personal_ratio" property="pensionPersonalRatio"/>
+        <result column="medical_personal_ratio" property="medicalPersonalRatio"/>
+        <result column="unemployment_personal_ratio" property="unemploymentPersonalRatio"/>
+        <result column="pension_company_ratio" property="pensionCompanyRatio"/>
+        <result column="medical_company_ratio" property="medicalCompanyRatio"/>
+        <result column="unemployment_company_ratio" property="unemploymentCompanyRatio"/>
+        <result column="injury_company_ratio" property="injuryCompanyRatio"/>
+        <result column="maternity_company_ratio" property="maternityCompanyRatio"/>
+        <result column="housing_fund_personal_ratio" property="housingFundPersonalRatio"/>
+        <result column="housing_fund_company_ratio" property="housingFundCompanyRatio"/>
+        <result column="social_insurance_ceiling" property="socialInsuranceCeiling"/>
+        <result column="social_insurance_floor" property="socialInsuranceFloor"/>
+        <result column="housing_fund_ceiling" property="housingFundCeiling"/>
+        <result column="housing_fund_floor" property="housingFundFloor"/>
+        <result column="tax_threshold" property="taxThreshold"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, city_name, pension_personal_ratio, medical_personal_ratio,
+        unemployment_personal_ratio, pension_company_ratio, medical_company_ratio,
+        unemployment_company_ratio, injury_company_ratio, maternity_company_ratio,
+        housing_fund_personal_ratio, housing_fund_company_ratio,
+        social_insurance_ceiling, social_insurance_floor,
+        housing_fund_ceiling, housing_fund_floor,
+        tax_threshold, effective_date, create_time, update_time
+    </sql>
+
+    <select id="selectByCity" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM social_insurance_config
+        WHERE city_name = #{cityName}
+        ORDER BY effective_date DESC LIMIT 1
+    </select>
+
+    <select id="selectLatest" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM social_insurance_config
+        ORDER BY effective_date DESC LIMIT 1
+    </select>
+
+</mapper>

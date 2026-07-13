@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.RegularizationApplicationMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.RegularizationApplication">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="formal_salary" property="formalSalary"/>
+        <result column="probation_summary" property="probationSummary"/>
+        <result column="supervisor_comment" property="supervisorComment"/>
+        <result column="status" property="status"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="VOResultMap" type="com.hrms.vo.RegularizationVO">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="employee_name" property="employeeName"/>
+        <result column="dept_id" property="deptId"/>
+        <result column="dept_name" property="deptName"/>
+        <result column="position_name" property="positionName"/>
+        <result column="hire_date" property="hireDate"/>
+        <result column="probation_end_date" property="probationEndDate"/>
+        <result column="formal_salary" property="formalSalary"/>
+        <result column="probation_summary" property="probationSummary"/>
+        <result column="supervisor_comment" property="supervisorComment"/>
+        <result column="status" property="status"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="submitter_name" property="submitterName"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.hrms.entity.RegularizationApplication"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO regularization_application
+        (employee_id, formal_salary, probation_summary, supervisor_comment, status, submitter_id)
+        VALUES
+        (#{employeeId}, #{formalSalary}, #{probationSummary}, #{supervisorComment}, #{status}, #{submitterId})
+    </insert>
+
+    <update id="update" parameterType="com.hrms.entity.RegularizationApplication">
+        UPDATE regularization_application
+        <set>
+            <if test="formalSalary != null">formal_salary = #{formalSalary},</if>
+            <if test="probationSummary != null">probation_summary = #{probationSummary},</if>
+            <if test="supervisorComment != null">supervisor_comment = #{supervisorComment},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM regularization_application WHERE id = #{id}
+    </select>
+
+    <select id="selectVOById" resultMap="VOResultMap">
+        SELECT
+            ra.*,
+            e.name AS employee_name,
+            e.dept_id,
+            d.dept_name,
+            p.position_name,
+            e.entry_date AS hire_date,
+            e.regular_date AS probation_end_date,
+            su.username AS submitter_name
+        FROM regularization_application ra
+        JOIN employee e ON ra.employee_id = e.id
+        LEFT JOIN department d ON e.dept_id = d.id
+        LEFT JOIN position p ON e.position_id = p.id
+        LEFT JOIN sys_user su ON ra.submitter_id = su.id
+        WHERE ra.id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="VOResultMap">
+        SELECT
+            ra.*,
+            e.name AS employee_name,
+            e.dept_id,
+            d.dept_name,
+            p.position_name,
+            e.entry_date AS hire_date,
+            e.regular_date AS probation_end_date,
+            su.username AS submitter_name
+        FROM regularization_application ra
+        JOIN employee e ON ra.employee_id = e.id
+        LEFT JOIN department d ON e.dept_id = d.id
+        LEFT JOIN position p ON e.position_id = p.id
+        LEFT JOIN sys_user su ON ra.submitter_id = su.id
+        <where>
+            <if test="status != null">AND ra.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND e.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY ra.create_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="int">
+        SELECT COUNT(*) FROM regularization_application ra
+        JOIN employee e ON ra.employee_id = e.id
+        <where>
+            <if test="status != null">AND ra.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND e.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+</mapper>

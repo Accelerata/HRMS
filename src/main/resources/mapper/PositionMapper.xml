@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.PositionMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.Position">
+        <id column="id" property="id"/>
+        <result column="position_name" property="positionName"/>
+        <result column="position_code" property="positionCode"/>
+        <result column="sequence" property="sequence"/>
+        <result column="grade_range" property="gradeRange"/>
+        <result column="default_probation_months" property="defaultProbationMonths"/>
+        <result column="description" property="description"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM `position`
+        WHERE status = 1
+        ORDER BY FIELD(`sequence`, 'M', 'P', 'S'), position_code ASC
+    </select>
+
+    <select id="selectBySequence" resultMap="BaseResultMap">
+        SELECT * FROM `position`
+        WHERE `sequence` = #{sequence} AND status = 1
+        ORDER BY position_code ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM `position` WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `position` (position_name, position_code, `sequence`, grade_range,
+                                default_probation_months, description, status, create_time, update_time)
+        VALUES (#{positionName}, #{positionCode}, #{sequence}, #{gradeRange},
+                #{defaultProbationMonths}, #{description}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE `position`
+        SET position_name            = #{positionName},
+            position_code            = #{positionCode},
+            `sequence`               = #{sequence},
+            grade_range              = #{gradeRange},
+            default_probation_months = #{defaultProbationMonths},
+            description              = #{description},
+            status                   = #{status},
+            update_time              = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM `position` WHERE id = #{id}
+    </delete>
+
+    <select id="countByCode" resultType="int">
+        SELECT COUNT(*) FROM `position`
+        WHERE position_code = #{positionCode}
+        <if test="excludeId != null">AND id != #{excludeId}</if>
+    </select>
+
+</mapper>

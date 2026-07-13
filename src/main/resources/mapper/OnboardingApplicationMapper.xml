@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.OnboardingApplicationMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.OnboardingApplication">
+        <id column="id" property="id"/>
+        <result column="real_name" property="realName"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="id_card" property="idCard"/>
+        <result column="gender" property="gender"/>
+        <result column="registered_address" property="registeredAddress"/>
+        <result column="current_address" property="currentAddress"/>
+        <result column="target_dept_id" property="targetDeptId"/>
+        <result column="target_position_id" property="targetPositionId"/>
+        <result column="offer_salary" property="offerSalary"/>
+        <result column="probation_months" property="probationMonths"/>
+        <result column="grade" property="grade"/>
+        <result column="report_to" property="reportTo"/>
+        <result column="work_location" property="workLocation"/>
+        <result column="entry_type" property="entryType"/>
+        <result column="salary_account_id" property="salaryAccountId"/>
+        <result column="bank_account" property="bankAccount"/>
+        <result column="bank_name" property="bankName"/>
+        <result column="entry_date" property="entryDate"/>
+        <result column="status" property="status"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="VOResultMap" type="com.hrms.vo.OnboardingVO">
+        <id column="id" property="id"/>
+        <result column="real_name" property="realName"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="id_card" property="idCard"/>
+        <result column="target_dept_id" property="targetDeptId"/>
+        <result column="target_dept_name" property="targetDeptName"/>
+        <result column="target_position_id" property="targetPositionId"/>
+        <result column="target_position_name" property="targetPositionName"/>
+        <result column="offer_salary" property="offerSalary"/>
+        <result column="probation_months" property="probationMonths"/>
+        <result column="entry_date" property="entryDate"/>
+        <result column="status" property="status"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="submitter_name" property="submitterName"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.hrms.entity.OnboardingApplication"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO onboarding_application
+        (real_name, phone, email, id_card, gender, registered_address, current_address,
+         target_dept_id, target_position_id,
+         offer_salary, probation_months, grade, report_to, work_location, entry_type,
+         salary_account_id, bank_account, bank_name,
+         entry_date, status, employee_id, submitter_id)
+        VALUES
+        (#{realName}, #{phone}, #{email}, #{idCard}, #{gender}, #{registeredAddress}, #{currentAddress},
+         #{targetDeptId}, #{targetPositionId},
+         #{offerSalary}, #{probationMonths}, #{grade}, #{reportTo}, #{workLocation}, #{entryType},
+         #{salaryAccountId}, #{bankAccount}, #{bankName},
+         #{entryDate}, #{status}, #{employeeId}, #{submitterId})
+    </insert>
+
+    <update id="update" parameterType="com.hrms.entity.OnboardingApplication">
+        UPDATE onboarding_application
+        <set>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="targetDeptId != null">target_dept_id = #{targetDeptId},</if>
+            <if test="targetPositionId != null">target_position_id = #{targetPositionId},</if>
+            <if test="offerSalary != null">offer_salary = #{offerSalary},</if>
+            <if test="probationMonths != null">probation_months = #{probationMonths},</if>
+            <if test="entryDate != null">entry_date = #{entryDate},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="employeeId != null">employee_id = #{employeeId},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM onboarding_application WHERE id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="VOResultMap">
+        SELECT
+            oa.*,
+            d.dept_name AS target_dept_name,
+            p.position_name AS target_position_name,
+            su.username AS submitter_name
+        FROM onboarding_application oa
+        LEFT JOIN department d ON oa.target_dept_id = d.id
+        LEFT JOIN position p ON oa.target_position_id = p.id
+        LEFT JOIN sys_user su ON oa.submitter_id = su.id
+        <where>
+            <if test="status != null">AND oa.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (oa.real_name LIKE CONCAT('%', #{keyword}, '%')
+                     OR oa.phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY oa.create_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="int">
+        SELECT COUNT(*) FROM onboarding_application oa
+        <where>
+            <if test="status != null">AND oa.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (oa.real_name LIKE CONCAT('%', #{keyword}, '%')
+                     OR oa.phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM onboarding_application WHERE status = #{status}
+    </select>
+
+</mapper>

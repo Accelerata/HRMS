@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.ApprovalTemplateMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.ApprovalTemplate">
+        <id column="id" property="id"/>
+        <result column="business_type" property="businessType"/>
+        <result column="step_order" property="stepOrder"/>
+        <result column="approver_target" property="approverTarget"/>
+        <result column="step_name" property="stepName"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectByBusinessType" resultMap="BaseResultMap">
+        SELECT * FROM approval_template
+        WHERE business_type = #{businessType}
+        ORDER BY step_order ASC
+    </select>
+
+</mapper>

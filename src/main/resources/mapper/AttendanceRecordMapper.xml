@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.AttendanceRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.AttendanceRecord">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="group_id" property="groupId"/>
+        <result column="attendance_date" property="attendanceDate"/>
+        <result column="punch_in_time" property="punchInTime"/>
+        <result column="punch_out_time" property="punchOutTime"/>
+        <result column="punch_in_status" property="punchInStatus"/>
+        <result column="punch_out_status" property="punchOutStatus"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByEmployeeAndDate" resultMap="BaseResultMap">
+        SELECT * FROM attendance_record
+        WHERE employee_id = #{employeeId} AND attendance_date = #{attendanceDate}
+    </select>
+
+    <select id="selectByEmployee" resultMap="BaseResultMap">
+        SELECT * FROM attendance_record
+        WHERE employee_id = #{employeeId}
+        ORDER BY attendance_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByEmployee" resultType="int">
+        SELECT COUNT(*) FROM attendance_record WHERE employee_id = #{employeeId}
+    </select>
+
+    <select id="selectByDeptAndDateRange" resultMap="BaseResultMap">
+        SELECT ar.* FROM attendance_record ar
+        INNER JOIN employee e ON ar.employee_id = e.id
+        WHERE e.dept_id = #{deptId}
+          AND ar.attendance_date BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <!-- 新增：按员工+年月查询（用于薪资核算汇总） -->
+    <select id="selectByEmployeeAndMonth" resultMap="BaseResultMap">
+        SELECT * FROM attendance_record
+        WHERE employee_id = #{employeeId}
+          AND YEAR(attendance_date) = #{year}
+          AND MONTH(attendance_date) = #{month}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO attendance_record (
+            employee_id, group_id, attendance_date,
+            punch_in_time, punch_out_time,
+            punch_in_status, punch_out_status,
+            create_time, update_time
+        ) VALUES (
+            #{employeeId}, #{groupId}, #{attendanceDate},
+            #{punchInTime}, #{punchOutTime},
+            #{punchInStatus}, #{punchOutStatus},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updatePunchIn">
+        UPDATE attendance_record
+        SET punch_in_time = #{punchInTime},
+            punch_in_status = #{punchInStatus},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updatePunchOut">
+        UPDATE attendance_record
+        SET punch_out_time = #{punchOutTime},
+            punch_out_status = #{punchOutStatus},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

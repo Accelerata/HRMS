@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.EmployeeContractMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.EmployeeContract">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="contract_type" property="contractType"/>
+        <result column="contract_start_date" property="contractStartDate"/>
+        <result column="contract_end_date" property="contractEndDate"/>
+        <result column="probation_salary_ratio" property="probationSalaryRatio"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, employee_id, contract_type,
+        contract_start_date, contract_end_date,
+        probation_salary_ratio, status,
+        create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee_contract WHERE id = #{id}
+    </select>
+
+    <select id="selectByEmployeeId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee_contract
+        WHERE employee_id = #{employeeId}
+        ORDER BY contract_start_date DESC
+    </select>
+
+    <select id="selectActiveByEmployeeId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee_contract
+        WHERE employee_id = #{employeeId} AND status = 1
+        ORDER BY contract_start_date DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.hrms.entity.EmployeeContract"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO employee_contract (
+            employee_id, contract_type,
+            contract_start_date, contract_end_date,
+            probation_salary_ratio, status
+        ) VALUES (
+            #{employeeId}, #{contractType},
+            #{contractStartDate}, #{contractEndDate},
+            #{probationSalaryRatio}, #{status}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.hrms.entity.EmployeeContract">
+        UPDATE employee_contract
+        <set>
+            <if test="contractType != null">contract_type = #{contractType},</if>
+            <if test="contractStartDate != null">contract_start_date = #{contractStartDate},</if>
+            <if test="contractEndDate != null">contract_end_date = #{contractEndDate},</if>
+            <if test="probationSalaryRatio != null">probation_salary_ratio = #{probationSalaryRatio},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="terminateById">
+        UPDATE employee_contract SET status = 0 WHERE id = #{id}
+    </update>
+
+</mapper>

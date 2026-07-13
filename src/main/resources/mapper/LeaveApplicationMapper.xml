@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.LeaveApplicationMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.LeaveApplication">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="leave_type" property="leaveType"/>
+        <result column="start_date" property="startDate"/>
+        <result column="end_date" property="endDate"/>
+        <result column="days" property="days"/>
+        <result column="reason" property="reason"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM leave_application WHERE id = #{id}
+    </select>
+
+    <select id="selectByEmployee" resultMap="BaseResultMap">
+        SELECT * FROM leave_application
+        WHERE employee_id = #{employeeId}
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByEmployee" resultType="int">
+        SELECT COUNT(*) FROM leave_application WHERE employee_id = #{employeeId}
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM leave_application
+        WHERE status = #{status}
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO leave_application (
+            employee_id, leave_type, start_date, end_date,
+            days, reason, status, create_time, update_time
+        ) VALUES (
+            #{employeeId}, #{leaveType}, #{startDate}, #{endDate},
+            #{days}, #{reason}, #{status}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE leave_application SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- 新增：汇总已通过请假天数（用于薪资核算） -->
+    <select id="sumApprovedLeaveDays" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(days), 0)
+        FROM leave_application
+        WHERE employee_id = #{employeeId}
+          AND leave_type = #{leaveType}
+          AND status = 2  <!-- 已通过 -->
+          AND start_date &lt;= #{endDate}
+          AND end_date &gt;= #{startDate}
+    </select>
+
+</mapper>

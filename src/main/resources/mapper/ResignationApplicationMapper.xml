@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.ResignationApplicationMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.ResignationApplication">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="resignation_type" property="resignationType"/>
+        <result column="resignation_reason" property="resignationReason"/>
+        <result column="resignation_date" property="resignationDate"/>
+        <result column="handover_info" property="handoverInfo"/>
+        <result column="handover_to" property="handoverTo"/>
+        <result column="status" property="status"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="VOResultMap" type="com.hrms.vo.ResignationVO">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="employee_name" property="employeeName"/>
+        <result column="dept_id" property="deptId"/>
+        <result column="dept_name" property="deptName"/>
+        <result column="resignation_type" property="resignationType"/>
+        <result column="resignation_reason" property="resignationReason"/>
+        <result column="resignation_date" property="resignationDate"/>
+        <result column="handover_info" property="handoverInfo"/>
+        <result column="handover_to" property="handoverTo"/>
+        <result column="handover_to_name" property="handoverToName"/>
+        <result column="status" property="status"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="submitter_name" property="submitterName"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.hrms.entity.ResignationApplication"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO resignation_application
+        (employee_id, resignation_type, resignation_reason, resignation_date,
+         handover_info, handover_to, status, submitter_id)
+        VALUES
+        (#{employeeId}, #{resignationType}, #{resignationReason}, #{resignationDate},
+         #{handoverInfo}, #{handoverTo}, #{status}, #{submitterId})
+    </insert>
+
+    <update id="update" parameterType="com.hrms.entity.ResignationApplication">
+        UPDATE resignation_application
+        <set>
+            <if test="resignationType != null">resignation_type = #{resignationType},</if>
+            <if test="resignationReason != null">resignation_reason = #{resignationReason},</if>
+            <if test="resignationDate != null">resignation_date = #{resignationDate},</if>
+            <if test="handoverInfo != null">handover_info = #{handoverInfo},</if>
+            <if test="handoverTo != null">handover_to = #{handoverTo},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM resignation_application WHERE id = #{id}
+    </select>
+
+    <select id="selectVOById" resultMap="VOResultMap">
+        SELECT
+            ra.*,
+            e.name AS employee_name,
+            e.dept_id,
+            d.dept_name,
+            ht.name AS handover_to_name,
+            su.username AS submitter_name
+        FROM resignation_application ra
+        JOIN employee e ON ra.employee_id = e.id
+        LEFT JOIN department d ON e.dept_id = d.id
+        LEFT JOIN employee ht ON ra.handover_to = ht.id
+        LEFT JOIN sys_user su ON ra.submitter_id = su.id
+        WHERE ra.id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="VOResultMap">
+        SELECT
+            ra.*,
+            e.name AS employee_name,
+            e.dept_id,
+            d.dept_name,
+            ht.name AS handover_to_name,
+            su.username AS submitter_name
+        FROM resignation_application ra
+        JOIN employee e ON ra.employee_id = e.id
+        LEFT JOIN department d ON e.dept_id = d.id
+        LEFT JOIN employee ht ON ra.handover_to = ht.id
+        LEFT JOIN sys_user su ON ra.submitter_id = su.id
+        <where>
+            <if test="status != null">AND ra.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND e.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY ra.create_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="int">
+        SELECT COUNT(*) FROM resignation_application ra
+        JOIN employee e ON ra.employee_id = e.id
+        <where>
+            <if test="status != null">AND ra.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND e.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+</mapper>

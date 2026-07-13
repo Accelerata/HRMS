@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.TransferApplicationMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.TransferApplication">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="from_dept_id" property="fromDeptId"/>
+        <result column="to_dept_id" property="toDeptId"/>
+        <result column="from_position_id" property="fromPositionId"/>
+        <result column="to_position_id" property="toPositionId"/>
+        <result column="transfer_reason" property="transferReason"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="old_manager_approved" property="oldManagerApproved"/>
+        <result column="new_manager_approved" property="newManagerApproved"/>
+        <result column="status" property="status"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="VOResultMap" type="com.hrms.vo.TransferVO">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="employee_name" property="employeeName"/>
+        <result column="from_dept_id" property="fromDeptId"/>
+        <result column="from_dept_name" property="fromDeptName"/>
+        <result column="to_dept_id" property="toDeptId"/>
+        <result column="to_dept_name" property="toDeptName"/>
+        <result column="from_position_id" property="fromPositionId"/>
+        <result column="from_position_name" property="fromPositionName"/>
+        <result column="to_position_id" property="toPositionId"/>
+        <result column="to_position_name" property="toPositionName"/>
+        <result column="transfer_reason" property="transferReason"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="old_manager_approved" property="oldManagerApproved"/>
+        <result column="new_manager_approved" property="newManagerApproved"/>
+        <result column="status" property="status"/>
+        <result column="submitter_id" property="submitterId"/>
+        <result column="submitter_name" property="submitterName"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.hrms.entity.TransferApplication"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO transfer_application
+        (employee_id, from_dept_id, to_dept_id, from_position_id, to_position_id,
+         transfer_reason, effective_date, old_manager_approved, new_manager_approved, status, submitter_id)
+        VALUES
+        (#{employeeId}, #{fromDeptId}, #{toDeptId}, #{fromPositionId}, #{toPositionId},
+         #{transferReason}, #{effectiveDate}, #{oldManagerApproved}, #{newManagerApproved}, #{status}, #{submitterId})
+    </insert>
+
+    <update id="update" parameterType="com.hrms.entity.TransferApplication">
+        UPDATE transfer_application
+        <set>
+            <if test="toDeptId != null">to_dept_id = #{toDeptId},</if>
+            <if test="toPositionId != null">to_position_id = #{toPositionId},</if>
+            <if test="transferReason != null">transfer_reason = #{transferReason},</if>
+            <if test="effectiveDate != null">effective_date = #{effectiveDate},</if>
+            <if test="oldManagerApproved != null">old_manager_approved = #{oldManagerApproved},</if>
+            <if test="newManagerApproved != null">new_manager_approved = #{newManagerApproved},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM transfer_application WHERE id = #{id}
+    </select>
+
+    <select id="selectVOById" resultMap="VOResultMap">
+        SELECT
+            ta.*,
+            e.name AS employee_name,
+            fd.dept_name AS from_dept_name,
+            td.dept_name AS to_dept_name,
+            fp.position_name AS from_position_name,
+            tp.position_name AS to_position_name,
+            su.username AS submitter_name
+        FROM transfer_application ta
+        JOIN employee e ON ta.employee_id = e.id
+        LEFT JOIN department fd ON ta.from_dept_id = fd.id
+        LEFT JOIN department td ON ta.to_dept_id = td.id
+        LEFT JOIN position fp ON ta.from_position_id = fp.id
+        LEFT JOIN position tp ON ta.to_position_id = tp.id
+        LEFT JOIN sys_user su ON ta.submitter_id = su.id
+        WHERE ta.id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="VOResultMap">
+        SELECT
+            ta.*,
+            e.name AS employee_name,
+            fd.dept_name AS from_dept_name,
+            td.dept_name AS to_dept_name,
+            fp.position_name AS from_position_name,
+            tp.position_name AS to_position_name,
+            su.username AS submitter_name
+        FROM transfer_application ta
+        JOIN employee e ON ta.employee_id = e.id
+        LEFT JOIN department fd ON ta.from_dept_id = fd.id
+        LEFT JOIN department td ON ta.to_dept_id = td.id
+        LEFT JOIN position fp ON ta.from_position_id = fp.id
+        LEFT JOIN position tp ON ta.to_position_id = tp.id
+        LEFT JOIN sys_user su ON ta.submitter_id = su.id
+        <where>
+            <if test="status != null">AND ta.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND e.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY ta.create_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="int">
+        SELECT COUNT(*) FROM transfer_application ta
+        JOIN employee e ON ta.employee_id = e.id
+        <where>
+            <if test="status != null">AND ta.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND e.name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+</mapper>
