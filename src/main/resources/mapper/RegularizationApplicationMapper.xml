@@ -5,13 +5,15 @@
     <resultMap id="BaseResultMap" type="com.hrms.entity.RegularizationApplication">
         <id column="id" property="id"/>
         <result column="employee_id" property="employeeId"/>
-        <result column="formal_salary" property="formalSalary"/>
+        <result column="formal_salary" property="formalSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_summary" property="probationSummary"/>
         <result column="supervisor_comment" property="supervisorComment"/>
         <result column="status" property="status"/>
         <result column="submitter_id" property="submitterId"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
+        <result column="encryption_version" property="encryptionVersion"/>
     </resultMap>
 
     <resultMap id="VOResultMap" type="com.hrms.vo.RegularizationVO">
@@ -23,7 +25,8 @@
         <result column="position_name" property="positionName"/>
         <result column="hire_date" property="hireDate"/>
         <result column="probation_end_date" property="probationEndDate"/>
-        <result column="formal_salary" property="formalSalary"/>
+        <result column="formal_salary" property="formalSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_summary" property="probationSummary"/>
         <result column="supervisor_comment" property="supervisorComment"/>
         <result column="status" property="status"/>
@@ -36,15 +39,17 @@
     <insert id="insert" parameterType="com.hrms.entity.RegularizationApplication"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO regularization_application
-        (employee_id, formal_salary, probation_summary, supervisor_comment, status, submitter_id)
+        (employee_id, formal_salary, probation_summary, supervisor_comment, status, submitter_id, encryption_version)
         VALUES
-        (#{employeeId}, #{formalSalary}, #{probationSummary}, #{supervisorComment}, #{status}, #{submitterId})
+        (#{employeeId},
+         #{formalSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+         #{probationSummary}, #{supervisorComment}, #{status}, #{submitterId}, 1)
     </insert>
 
     <update id="update" parameterType="com.hrms.entity.RegularizationApplication">
         UPDATE regularization_application
         <set>
-            <if test="formalSalary != null">formal_salary = #{formalSalary},</if>
+            <if test="formalSalary != null">formal_salary = #{formalSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},</if>
             <if test="probationSummary != null">probation_summary = #{probationSummary},</if>
             <if test="supervisorComment != null">supervisor_comment = #{supervisorComment},</if>
             <if test="status != null">status = #{status},</if>
@@ -53,19 +58,31 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM regularization_application WHERE id = #{id}
+        SELECT id, employee_id,
+               COALESCE(formal_salary, CAST(formal_salary AS CHAR)) AS formal_salary,
+               probation_summary, supervisor_comment, status, submitter_id,
+               create_time, update_time, encryption_version
+        FROM regularization_application WHERE id = #{id}
     </select>
 
     <select id="selectVOById" resultMap="VOResultMap">
         SELECT
-            ra.*,
+            ra.id,
+            ra.employee_id,
             e.name AS employee_name,
             e.dept_id,
             d.dept_name,
             p.position_name,
             e.entry_date AS hire_date,
             e.regular_date AS probation_end_date,
-            su.username AS submitter_name
+            COALESCE(ra.formal_salary, CAST(ra.formal_salary AS CHAR)) AS formal_salary,
+            ra.probation_summary,
+            ra.supervisor_comment,
+            ra.status,
+            ra.submitter_id,
+            su.username AS submitter_name,
+            ra.create_time,
+            ra.update_time
         FROM regularization_application ra
         JOIN employee e ON ra.employee_id = e.id
         LEFT JOIN department d ON e.dept_id = d.id
@@ -76,14 +93,22 @@
 
     <select id="selectPage" resultMap="VOResultMap">
         SELECT
-            ra.*,
+            ra.id,
+            ra.employee_id,
             e.name AS employee_name,
             e.dept_id,
             d.dept_name,
             p.position_name,
             e.entry_date AS hire_date,
             e.regular_date AS probation_end_date,
-            su.username AS submitter_name
+            COALESCE(ra.formal_salary, CAST(ra.formal_salary AS CHAR)) AS formal_salary,
+            ra.probation_summary,
+            ra.supervisor_comment,
+            ra.status,
+            ra.submitter_id,
+            su.username AS submitter_name,
+            ra.create_time,
+            ra.update_time
         FROM regularization_application ra
         JOIN employee e ON ra.employee_id = e.id
         LEFT JOIN department d ON e.dept_id = d.id

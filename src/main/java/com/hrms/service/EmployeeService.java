@@ -1,6 +1,7 @@
 package com.hrms.service;
 
 import com.hrms.common.exception.BaseException;
+import com.hrms.crypto.EncryptionUtil;
 import com.hrms.dto.EmployeeSaveDTO;
 import com.hrms.entity.Department;
 import com.hrms.entity.Employee;
@@ -16,11 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 员工档案管理服务
  * 负责员工 CRUD、工号自动生成、唯一性校验
+ * 敏感字段通过 EncryptionUtil 计算哈希后写入 hash 列，支持加密后精确查询
  */
 @Slf4j
 @Service
@@ -29,6 +30,7 @@ public class EmployeeService {
 
     private final EmployeeMapper employeeMapper;
     private final DepartmentMapper departmentMapper;
+    private final EncryptionUtil encryptionUtil;
 
     /** 工号序号缓存（简化实现，生产环境应用 Redis 原子自增） */
     private static final DateTimeFormatter YEAR_FMT = DateTimeFormatter.ofPattern("yyyy");
@@ -77,14 +79,16 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeVO create(EmployeeSaveDTO dto) {
-        // 1. 校验手机号唯一性
-        if (employeeMapper.selectByPhone(dto.getPhone()) != null) {
-            throw BaseException.badRequest("手机号[" + dto.getPhone() + "]已被其他员工使用");
+        // 1. 校验手机号唯一性（通过哈希索引查询）
+        String phoneHash = encryptionUtil.computeHash(dto.getPhone());
+        if (phoneHash != null && employeeMapper.selectByPhoneHash(phoneHash) != null) {
+            throw BaseException.badRequest("手机号已被其他员工使用");
         }
 
-        // 2. 校验身份证号唯一性
-        if (employeeMapper.selectByIdCard(dto.getIdCard()) != null) {
-            throw BaseException.badRequest("身份证号[" + dto.getIdCard() + "]已存在");
+        // 2. 校验身份证号唯一性（通过哈希索引查询）
+        String idCardHash = encryptionUtil.computeHash(dto.getIdCard());
+        if (idCardHash != null && employeeMapper.selectByIdCardHash(idCardHash) != null) {
+            throw BaseException.badRequest("身份证号已存在");
         }
 
         // 3. 校验部门存在
@@ -99,8 +103,10 @@ public class EmployeeService {
         emp.setName(dto.getName());
         emp.setGender(dto.getGender());
         emp.setPhone(dto.getPhone());
+        emp.setPhoneHash(phoneHash);
         emp.setEmail(dto.getEmail());
         emp.setIdCard(dto.getIdCard());
+        emp.setIdCardHash(idCardHash);
         // 生日：不填则从身份证号自动提取
         emp.setBirthday(dto.getBirthday() != null ? dto.getBirthday() : extractBirthdayFromIdCard(dto.getIdCard()));
         emp.setRegisteredAddress(dto.getRegisteredAddress());
@@ -114,6 +120,7 @@ public class EmployeeService {
         emp.setSalaryAccountId(dto.getSalaryAccountId());
         emp.setBaseSalary(dto.getBaseSalary());
         emp.setBankAccount(dto.getBankAccount());
+        emp.setBankAccountHash(encryptionUtil.computeHash(dto.getBankAccount()));
         emp.setBankName(dto.getBankName());
         emp.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);  // 默认试用期
         emp.setEntryDate(dto.getEntryDate());
@@ -136,16 +143,22 @@ public class EmployeeService {
             throw BaseException.notFound("员工不存在");
         }
 
-        // 手机号唯一性（排除自己）
-        Employee phoneOwner = employeeMapper.selectByPhone(dto.getPhone());
-        if (phoneOwner != null && !phoneOwner.getId().equals(dto.getId())) {
-            throw BaseException.badRequest("手机号[" + dto.getPhone() + "]已被其他员工使用");
+        // 手机号唯一性（排除自己，通过哈希索引查询）
+        String phoneHash = encryptionUtil.computeHash(dto.getPhone());
+        if (phoneHash != null) {
+            Employee phoneOwner = employeeMapper.selectByPhoneHash(phoneHash);
+            if (phoneOwner != null && !phoneOwner.getId().equals(dto.getId())) {
+                throw BaseException.badRequest("手机号已被其他员工使用");
+            }
         }
 
-        // 身份证号唯一性（排除自己）
-        Employee idCardOwner = employeeMapper.selectByIdCard(dto.getIdCard());
-        if (idCardOwner != null && !idCardOwner.getId().equals(dto.getId())) {
-            throw BaseException.badRequest("身份证号[" + dto.getIdCard() + "]已存在");
+        // 身份证号唯一性（排除自己，通过哈希索引查询）
+        String idCardHash = encryptionUtil.computeHash(dto.getIdCard());
+        if (idCardHash != null) {
+            Employee idCardOwner = employeeMapper.selectByIdCardHash(idCardHash);
+            if (idCardOwner != null && !idCardOwner.getId().equals(dto.getId())) {
+                throw BaseException.badRequest("身份证号已存在");
+            }
         }
 
         // 组装更新
@@ -154,8 +167,10 @@ public class EmployeeService {
         emp.setName(dto.getName());
         emp.setGender(dto.getGender());
         emp.setPhone(dto.getPhone());
+        emp.setPhoneHash(phoneHash);
         emp.setEmail(dto.getEmail());
         emp.setIdCard(dto.getIdCard());
+        emp.setIdCardHash(idCardHash);
         emp.setBirthday(dto.getBirthday() != null ? dto.getBirthday() : extractBirthdayFromIdCard(dto.getIdCard()));
         emp.setRegisteredAddress(dto.getRegisteredAddress());
         emp.setCurrentAddress(dto.getCurrentAddress());
@@ -168,6 +183,7 @@ public class EmployeeService {
         emp.setSalaryAccountId(dto.getSalaryAccountId());
         emp.setBaseSalary(dto.getBaseSalary());
         emp.setBankAccount(dto.getBankAccount());
+        emp.setBankAccountHash(encryptionUtil.computeHash(dto.getBankAccount()));
         emp.setBankName(dto.getBankName());
         emp.setStatus(dto.getStatus());
         emp.setEntryDate(dto.getEntryDate());
@@ -262,7 +278,6 @@ public class EmployeeService {
 
         // 职位
         vo.setPositionId(emp.getPositionId());
-        // 职位名称由调用方按需填充（避免循环依赖 PositionService）
 
         // 职级
         vo.setGrade(emp.getGrade());

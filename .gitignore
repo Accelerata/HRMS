@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### macOS ###
+.DS_Store
+
+### AI assistant local config ###
+.claude/settings.local.json

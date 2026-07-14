@@ -55,8 +55,21 @@ sky:
     access-key-secret: your-access-key-secret
     bucket-name: hrms-bucket
 
+# ── 数据加密 ──
+hrms:
+  encryption:
+    # 是否启用加密（默认 true）。设为 false 时明文存储，仅用于开发/测试环境
+    enabled: true
+
+# 加密主密钥（256-bit，Base64 编码）
+# ⚠️ 以下为开发环境密钥，生产环境 MUST 通过环境变量覆盖
+# 生产环境生成命令: openssl rand -base64 32
+HRMS_ENCRYPTION_KEY: hYst2VYpKiclonIOsDSe20nDeD0DKzD5f8CtGAS1mYM=
+
 # ── 日志 ──
 logging:
   level:
     com.hrms: debug
     org.springframework.web: info
+    # 加密模块降低日志级别，避免敏感信息泄露
+    com.hrms.crypto: warn

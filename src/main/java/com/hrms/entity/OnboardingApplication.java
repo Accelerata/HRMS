@@ -62,4 +62,10 @@ public class OnboardingApplication {
     private String bankAccount;
     /** 开户行 */
     private String bankName;
+
+    // ── 加密哈希索引 ──
+    private String phoneHash;
+    private String idCardHash;
+    private String bankAccountHash;
+    private Integer encryptionVersion;
 }

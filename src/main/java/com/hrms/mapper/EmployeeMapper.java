@@ -22,11 +22,17 @@ public interface EmployeeMapper {
     /** 根据工号查询 */
     Employee selectByEmployeeNo(@Param("employeeNo") String employeeNo);
 
-    /** 根据手机号查询 */
+    /** 根据手机号查询（迁移后改用 selectByPhoneHash） */
     Employee selectByPhone(@Param("phone") String phone);
 
-    /** 根据身份证号查询 */
+    /** 根据身份证号查询（迁移后改用 selectByIdCardHash） */
     Employee selectByIdCard(@Param("idCard") String idCard);
+
+    /** 根据手机号哈希精确查询 */
+    Employee selectByPhoneHash(@Param("phoneHash") String phoneHash);
+
+    /** 根据身份证号哈希精确查询 */
+    Employee selectByIdCardHash(@Param("idCardHash") String idCardHash);
 
     /** 根据部门ID查询在职员工列表 */
     List<Employee> selectByDeptId(@Param("deptId") Long deptId);

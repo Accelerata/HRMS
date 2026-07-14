@@ -2,6 +2,7 @@ package com.hrms.service;
 
 import com.hrms.common.context.BaseContext;
 import com.hrms.common.exception.BaseException;
+import com.hrms.crypto.EncryptionUtil;
 import com.hrms.dto.ApprovalActionDTO;
 import com.hrms.dto.OnboardingSaveDTO;
 import com.hrms.entity.*;
@@ -36,6 +37,7 @@ public class OnboardingService {
     private final EmployeeMapper employeeMapper;
     private final EmployeeTransferMapper transferMapper;
     private final DepartmentMapper departmentMapper;
+    private final EncryptionUtil encryptionUtil;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -67,8 +69,10 @@ public class OnboardingService {
         OnboardingApplication entity = new OnboardingApplication();
         entity.setRealName(dto.getRealName());
         entity.setPhone(dto.getPhone());
+        entity.setPhoneHash(encryptionUtil.computeHash(dto.getPhone()));
         entity.setEmail(dto.getEmail());
         entity.setIdCard(dto.getIdCard());
+        entity.setIdCardHash(encryptionUtil.computeHash(dto.getIdCard()));
         entity.setTargetDeptId(dto.getTargetDeptId());
         entity.setTargetPositionId(dto.getTargetPositionId());
         entity.setOfferSalary(dto.getOfferSalary());
@@ -86,6 +90,7 @@ public class OnboardingService {
         entity.setEntryType(dto.getEntryType() != null ? dto.getEntryType() : 1);
         entity.setSalaryAccountId(dto.getSalaryAccountId());
         entity.setBankAccount(dto.getBankAccount());
+        entity.setBankAccountHash(encryptionUtil.computeHash(dto.getBankAccount()));
         entity.setBankName(dto.getBankName());
 
         onboardingMapper.insert(entity);
@@ -106,8 +111,10 @@ public class OnboardingService {
         OnboardingApplication entity = new OnboardingApplication();
         entity.setRealName(dto.getRealName());
         entity.setPhone(dto.getPhone());
+        entity.setPhoneHash(encryptionUtil.computeHash(dto.getPhone()));
         entity.setEmail(dto.getEmail());
         entity.setIdCard(dto.getIdCard());
+        entity.setIdCardHash(encryptionUtil.computeHash(dto.getIdCard()));
         entity.setTargetDeptId(dto.getTargetDeptId());
         entity.setTargetPositionId(dto.getTargetPositionId());
         entity.setOfferSalary(dto.getOfferSalary());
@@ -125,6 +132,7 @@ public class OnboardingService {
         entity.setEntryType(dto.getEntryType() != null ? dto.getEntryType() : 1);
         entity.setSalaryAccountId(dto.getSalaryAccountId());
         entity.setBankAccount(dto.getBankAccount());
+        entity.setBankAccountHash(encryptionUtil.computeHash(dto.getBankAccount()));
         entity.setBankName(dto.getBankName());
         onboardingMapper.insert(entity);
         log.info("入职草稿已保存: id={}", entity.getId());
@@ -144,13 +152,17 @@ public class OnboardingService {
 
         entity.setRealName(dto.getRealName());
         entity.setPhone(dto.getPhone());
+        entity.setPhoneHash(encryptionUtil.computeHash(dto.getPhone()));
         entity.setEmail(dto.getEmail());
         entity.setIdCard(dto.getIdCard());
+        entity.setIdCardHash(encryptionUtil.computeHash(dto.getIdCard()));
         entity.setTargetDeptId(dto.getTargetDeptId());
         entity.setTargetPositionId(dto.getTargetPositionId());
         entity.setOfferSalary(dto.getOfferSalary());
         entity.setProbationMonths(dto.getProbationMonths());
         entity.setEntryDate(LocalDate.parse(dto.getEntryDate(), DATE_FMT));
+        entity.setBankAccount(dto.getBankAccount());
+        entity.setBankAccountHash(encryptionUtil.computeHash(dto.getBankAccount()));
         // 重新提交 → 进入审批中
         entity.setStatus(ApprovalStatusEnum.PENDING.getCode());
 
@@ -232,8 +244,10 @@ public class OnboardingService {
         emp.setName(entity.getRealName());
         // 个人信息
         emp.setPhone(entity.getPhone());
+        emp.setPhoneHash(encryptionUtil.computeHash(entity.getPhone()));
         emp.setEmail(entity.getEmail());
         emp.setIdCard(entity.getIdCard());
+        emp.setIdCardHash(encryptionUtil.computeHash(entity.getIdCard()));
         // 从身份证号自动提取生日
         emp.setBirthday(extractBirthdayFromIdCard(entity.getIdCard()));
         // 工作信息
@@ -247,6 +261,7 @@ public class OnboardingService {
         emp.setSalaryAccountId(entity.getSalaryAccountId());
         emp.setBaseSalary(entity.getOfferSalary());
         emp.setBankAccount(entity.getBankAccount());
+        emp.setBankAccountHash(encryptionUtil.computeHash(entity.getBankAccount()));
         emp.setBankName(entity.getBankName());
         // 状态
         emp.setStatus(1); // 试用期

@@ -5,22 +5,30 @@
     <resultMap id="BaseResultMap" type="com.hrms.entity.SalaryAccount">
         <id column="id" property="id"/>
         <result column="employee_id" property="employeeId"/>
-        <result column="basic_salary" property="basicSalary"/>
-        <result column="position_salary" property="positionSalary"/>
-        <result column="performance_salary" property="performanceSalary"/>
+        <result column="basic_salary" property="basicSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="position_salary" property="positionSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="performance_salary" property="performanceSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_ratio" property="probationRatio"/>
-        <result column="social_insurance_base" property="socialInsuranceBase"/>
-        <result column="housing_fund_base" property="housingFundBase"/>
+        <result column="social_insurance_base" property="socialInsuranceBase"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="housing_fund_base" property="housingFundBase"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="status" property="status"/>
         <result column="effective_date" property="effectiveDate"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
+        <result column="encryption_version" property="encryptionVersion"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, employee_id, basic_salary, position_salary, performance_salary,
-        probation_ratio, social_insurance_base, housing_fund_base,
-        status, effective_date, create_time, update_time
+        id, employee_id,
+        basic_salary, position_salary, performance_salary,
+        probation_ratio,
+        social_insurance_base, housing_fund_base,
+        status, effective_date, create_time, update_time, encryption_version
     </sql>
 
     <select id="selectByEmployeeId" resultMap="BaseResultMap">
@@ -31,31 +39,45 @@
     </select>
 
     <select id="selectAllActive" resultMap="BaseResultMap">
-        SELECT sa.* FROM salary_account sa
+        SELECT sa.id, sa.employee_id,
+               sa.basic_salary, sa.position_salary, sa.performance_salary,
+               sa.probation_ratio,
+               sa.social_insurance_base, sa.housing_fund_base,
+               sa.status, sa.effective_date, sa.create_time, sa.update_time, sa.encryption_version
+        FROM salary_account sa
         INNER JOIN employee e ON sa.employee_id = e.id
         WHERE sa.status = 1 AND e.status IN (1, 2)
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_account (
-            employee_id, basic_salary, position_salary, performance_salary,
-            probation_ratio, social_insurance_base, housing_fund_base,
-            status, effective_date, create_time, update_time
+            employee_id,
+            basic_salary, position_salary, performance_salary,
+            probation_ratio,
+            social_insurance_base, housing_fund_base,
+            status, effective_date, encryption_version,
+            create_time, update_time
         ) VALUES (
-            #{employeeId}, #{basicSalary}, #{positionSalary}, #{performanceSalary},
-            #{probationRatio}, #{socialInsuranceBase}, #{housingFundBase},
-            #{status}, #{effectiveDate}, NOW(), NOW()
+            #{employeeId},
+            #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{positionSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{performanceSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{probationRatio},
+            #{socialInsuranceBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{housingFundBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{status}, #{effectiveDate}, 1,
+            NOW(), NOW()
         )
     </insert>
 
     <update id="update">
         UPDATE salary_account
-        SET basic_salary = #{basicSalary},
-            position_salary = #{positionSalary},
-            performance_salary = #{performanceSalary},
+        SET basic_salary = #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            position_salary = #{positionSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            performance_salary = #{performanceSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             probation_ratio = #{probationRatio},
-            social_insurance_base = #{socialInsuranceBase},
-            housing_fund_base = #{housingFundBase},
+            social_insurance_base = #{socialInsuranceBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            housing_fund_base = #{housingFundBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             update_time = NOW()
         WHERE id = #{id}
     </update>

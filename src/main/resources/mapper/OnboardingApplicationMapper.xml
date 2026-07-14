@@ -5,42 +5,59 @@
     <resultMap id="BaseResultMap" type="com.hrms.entity.OnboardingApplication">
         <id column="id" property="id"/>
         <result column="real_name" property="realName"/>
-        <result column="phone" property="phone"/>
-        <result column="email" property="email"/>
-        <result column="id_card" property="idCard"/>
+        <result column="phone" property="phone"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="phone_hash" property="phoneHash"/>
+        <result column="email" property="email"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="id_card" property="idCard"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="id_card_hash" property="idCardHash"/>
         <result column="gender" property="gender"/>
-        <result column="registered_address" property="registeredAddress"/>
-        <result column="current_address" property="currentAddress"/>
+        <result column="registered_address" property="registeredAddress"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="current_address" property="currentAddress"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
         <result column="target_dept_id" property="targetDeptId"/>
         <result column="target_position_id" property="targetPositionId"/>
-        <result column="offer_salary" property="offerSalary"/>
+        <result column="offer_salary" property="offerSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_months" property="probationMonths"/>
         <result column="grade" property="grade"/>
         <result column="report_to" property="reportTo"/>
         <result column="work_location" property="workLocation"/>
         <result column="entry_type" property="entryType"/>
         <result column="salary_account_id" property="salaryAccountId"/>
-        <result column="bank_account" property="bankAccount"/>
-        <result column="bank_name" property="bankName"/>
+        <result column="bank_account" property="bankAccount"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="bank_account_hash" property="bankAccountHash"/>
+        <result column="bank_name" property="bankName"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
         <result column="entry_date" property="entryDate"/>
         <result column="status" property="status"/>
         <result column="employee_id" property="employeeId"/>
         <result column="submitter_id" property="submitterId"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
+        <result column="encryption_version" property="encryptionVersion"/>
     </resultMap>
 
+    <!-- 列表 VO（含部门名称等关联字段），敏感字段不解密（列表页不需要） -->
     <resultMap id="VOResultMap" type="com.hrms.vo.OnboardingVO">
         <id column="id" property="id"/>
         <result column="real_name" property="realName"/>
-        <result column="phone" property="phone"/>
-        <result column="email" property="email"/>
-        <result column="id_card" property="idCard"/>
+        <result column="phone" property="phone"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="email" property="email"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="id_card" property="idCard"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
         <result column="target_dept_id" property="targetDeptId"/>
         <result column="target_dept_name" property="targetDeptName"/>
         <result column="target_position_id" property="targetPositionId"/>
         <result column="target_position_name" property="targetPositionName"/>
-        <result column="offer_salary" property="offerSalary"/>
+        <result column="offer_salary" property="offerSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_months" property="probationMonths"/>
         <result column="entry_date" property="entryDate"/>
         <result column="status" property="status"/>
@@ -51,32 +68,79 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <!-- 基础字段列表（加密列，兼容迁移期明文回退） -->
+    <sql id="BaseColumns">
+        id, real_name,
+        phone, phone_hash,
+        email,
+        id_card, id_card_hash,
+        gender,
+        registered_address,
+        current_address,
+        target_dept_id, target_position_id,
+        offer_salary,
+        probation_months, grade, report_to, work_location, entry_type,
+        salary_account_id,
+        bank_account, bank_account_hash,
+        bank_name,
+        entry_date, status, employee_id, submitter_id,
+        create_time, update_time, encryption_version
+    </sql>
+
     <insert id="insert" parameterType="com.hrms.entity.OnboardingApplication"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO onboarding_application
-        (real_name, phone, email, id_card, gender, registered_address, current_address,
+        (real_name,
+         phone, phone_hash,
+         email,
+         id_card, id_card_hash,
+         gender,
+         registered_address,
+         current_address,
          target_dept_id, target_position_id,
-         offer_salary, probation_months, grade, report_to, work_location, entry_type,
-         salary_account_id, bank_account, bank_name,
-         entry_date, status, employee_id, submitter_id)
+         offer_salary,
+         probation_months, grade, report_to, work_location, entry_type,
+         salary_account_id,
+         bank_account, bank_account_hash,
+         bank_name,
+         entry_date, status, employee_id, submitter_id,
+         encryption_version)
         VALUES
-        (#{realName}, #{phone}, #{email}, #{idCard}, #{gender}, #{registeredAddress}, #{currentAddress},
+        (#{realName},
+         #{phone, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+         #{phoneHash},
+         #{email, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+         #{idCard, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+         #{idCardHash},
+         #{gender},
+         #{registeredAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+         #{currentAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
          #{targetDeptId}, #{targetPositionId},
-         #{offerSalary}, #{probationMonths}, #{grade}, #{reportTo}, #{workLocation}, #{entryType},
-         #{salaryAccountId}, #{bankAccount}, #{bankName},
-         #{entryDate}, #{status}, #{employeeId}, #{submitterId})
+         #{offerSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+         #{probationMonths}, #{grade}, #{reportTo}, #{workLocation}, #{entryType},
+         #{salaryAccountId},
+         #{bankAccount, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+         #{bankAccountHash},
+         #{bankName, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+         #{entryDate}, #{status}, #{employeeId}, #{submitterId},
+         1)
     </insert>
 
     <update id="update" parameterType="com.hrms.entity.OnboardingApplication">
         UPDATE onboarding_application
         <set>
             <if test="realName != null">real_name = #{realName},</if>
-            <if test="phone != null">phone = #{phone},</if>
-            <if test="email != null">email = #{email},</if>
-            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="phone != null">phone = #{phone, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="phoneHash != null">phone_hash = #{phoneHash},</if>
+            <if test="email != null">email = #{email, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="idCard != null">id_card = #{idCard, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="idCardHash != null">id_card_hash = #{idCardHash},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="registeredAddress != null">registered_address = #{registeredAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="currentAddress != null">current_address = #{currentAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
             <if test="targetDeptId != null">target_dept_id = #{targetDeptId},</if>
             <if test="targetPositionId != null">target_position_id = #{targetPositionId},</if>
-            <if test="offerSalary != null">offer_salary = #{offerSalary},</if>
+            <if test="offerSalary != null">offer_salary = #{offerSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},</if>
             <if test="probationMonths != null">probation_months = #{probationMonths},</if>
             <if test="entryDate != null">entry_date = #{entryDate},</if>
             <if test="status != null">status = #{status},</if>
@@ -86,15 +150,27 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM onboarding_application WHERE id = #{id}
+        SELECT <include refid="BaseColumns"/> FROM onboarding_application WHERE id = #{id}
     </select>
 
     <select id="selectPage" resultMap="VOResultMap">
         SELECT
-            oa.*,
+            oa.id, oa.real_name,
+            oa.phone,
+            oa.email,
+            oa.id_card,
+            oa.target_dept_id,
             d.dept_name AS target_dept_name,
+            oa.target_position_id,
             p.position_name AS target_position_name,
-            su.username AS submitter_name
+            oa.offer_salary,
+            oa.probation_months,
+            oa.entry_date,
+            oa.status,
+            oa.employee_id,
+            oa.submitter_id,
+            su.username AS submitter_name,
+            oa.create_time, oa.update_time
         FROM onboarding_application oa
         LEFT JOIN department d ON oa.target_dept_id = d.id
         LEFT JOIN position p ON oa.target_position_id = p.id
@@ -102,8 +178,8 @@
         <where>
             <if test="status != null">AND oa.status = #{status}</if>
             <if test="keyword != null and keyword != ''">
-                AND (oa.real_name LIKE CONCAT('%', #{keyword}, '%')
-                     OR oa.phone LIKE CONCAT('%', #{keyword}, '%'))
+                AND (oa.real_name LIKE CONCAT('%', #{keyword}, '%'))
+                <!-- 加密字段不支持 LIKE，keyword 仅匹配姓名 -->
             </if>
         </where>
         ORDER BY oa.create_time DESC
@@ -115,14 +191,13 @@
         <where>
             <if test="status != null">AND oa.status = #{status}</if>
             <if test="keyword != null and keyword != ''">
-                AND (oa.real_name LIKE CONCAT('%', #{keyword}, '%')
-                     OR oa.phone LIKE CONCAT('%', #{keyword}, '%'))
+                AND oa.real_name LIKE CONCAT('%', #{keyword}, '%')
             </if>
         </where>
     </select>
 
     <select id="selectByStatus" resultMap="BaseResultMap">
-        SELECT * FROM onboarding_application WHERE status = #{status}
+        SELECT <include refid="BaseColumns"/> FROM onboarding_application WHERE status = #{status}
     </select>
 
 </mapper>

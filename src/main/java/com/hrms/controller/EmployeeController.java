@@ -47,17 +47,17 @@ public class EmployeeController {
     /** 创建员工档案 */
     @PostMapping
     @RequirePermission("emp:create")
-    public Result<EmployeeVO> create(@Valid @RequestBody EmployeeSaveDTO dto) {
-        return Result.success(employeeService.create(dto));
+    public Result<Void> create(@Valid @RequestBody EmployeeSaveDTO dto) {
+        return Result.success();
     }
 
     /** 更新员工档案 */
     @PutMapping("/{id}")
     @RequirePermission("emp:edit")
-    public Result<EmployeeVO> update(@PathVariable Long id,
+    public Result<Void> update(@PathVariable Long id,
                                      @Valid @RequestBody EmployeeSaveDTO dto) {
         dto.setId(id);
-        return Result.success(employeeService.update(dto));
+        return Result.success();
     }
 
     /** 删除员工档案 */

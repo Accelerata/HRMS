@@ -25,6 +25,8 @@ public class RegularizationApplication {
     private Long submitterId;
     /** 创建时间 */
     private LocalDateTime createTime;
+    /** 加密版本号 */
+    private Integer encryptionVersion;
     /** 更新时间 */
     private LocalDateTime updateTime;
 }

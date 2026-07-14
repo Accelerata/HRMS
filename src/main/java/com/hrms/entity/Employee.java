@@ -80,6 +80,20 @@ public class Employee {
     /** 开户行 */
     private String bankName;
 
+    // ────────────── 加密哈希索引（用于精确查询）──────────────
+
+    /** 手机号哈希 */
+    private String phoneHash;
+
+    /** 身份证号哈希 */
+    private String idCardHash;
+
+    /** 银行账号哈希 */
+    private String bankAccountHash;
+
+    /** 加密版本号 */
+    private Integer encryptionVersion;
+
     // ────────────── 状态与时间 ──────────────
 
     /**

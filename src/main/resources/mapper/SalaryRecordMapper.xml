@@ -2,22 +2,40 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hrms.mapper.SalaryRecordMapper">
 
+    <sql id="MoneyEncrypted">
+        basic_salary, attendance_deduction, leave_deduction,
+        overtime_pay, gross_pay,
+        social_insurance_personal, housing_fund_personal,
+        taxable_income, tax, other_deduction, net_pay
+    </sql>
+
     <resultMap id="BaseResultMap" type="com.hrms.entity.SalaryRecord">
         <id column="id" property="id"/>
         <result column="employee_id" property="employeeId"/>
         <result column="year" property="year"/>
         <result column="month" property="month"/>
-        <result column="basic_salary" property="basicSalary"/>
-        <result column="attendance_deduction" property="attendanceDeduction"/>
-        <result column="leave_deduction" property="leaveDeduction"/>
-        <result column="overtime_pay" property="overtimePay"/>
-        <result column="gross_pay" property="grossPay"/>
-        <result column="social_insurance_personal" property="socialInsurancePersonal"/>
-        <result column="housing_fund_personal" property="housingFundPersonal"/>
-        <result column="taxable_income" property="taxableIncome"/>
-        <result column="tax" property="tax"/>
-        <result column="other_deduction" property="otherDeduction"/>
-        <result column="net_pay" property="netPay"/>
+        <result column="basic_salary" property="basicSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="attendance_deduction" property="attendanceDeduction"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="leave_deduction" property="leaveDeduction"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="overtime_pay" property="overtimePay"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="gross_pay" property="grossPay"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="social_insurance_personal" property="socialInsurancePersonal"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="housing_fund_personal" property="housingFundPersonal"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="taxable_income" property="taxableIncome"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="tax" property="tax"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="other_deduction" property="otherDeduction"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="net_pay" property="netPay"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_ratio" property="probationRatio"/>
         <result column="leave_days" property="leaveDays"/>
         <result column="overtime_hours" property="overtimeHours"/>
@@ -28,49 +46,79 @@
         <result column="status" property="status"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
+        <result column="encryption_version" property="encryptionVersion"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, employee_id, year, month, basic_salary, attendance_deduction, leave_deduction,
-        overtime_pay, gross_pay, social_insurance_personal, housing_fund_personal,
-        taxable_income, tax, other_deduction, net_pay, probation_ratio,
+        id, employee_id, year, month,
+        <include refid="MoneyEncrypted"/>,
+        probation_ratio,
         leave_days, overtime_hours, late_count, early_count, absent_count,
-        warnings, status, create_time, update_time
+        warnings, status, encryption_version,
+        create_time, update_time
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_record (
-            employee_id, year, month, basic_salary, attendance_deduction, leave_deduction,
-            overtime_pay, gross_pay, social_insurance_personal, housing_fund_personal,
-            taxable_income, tax, other_deduction, net_pay, probation_ratio,
+            employee_id, year, month,
+            basic_salary, attendance_deduction, leave_deduction,
+            overtime_pay, gross_pay,
+            social_insurance_personal, housing_fund_personal,
+            taxable_income, tax, other_deduction, net_pay,
+            probation_ratio,
             leave_days, overtime_hours, late_count, early_count, absent_count,
-            warnings, status, create_time, update_time
+            warnings, status, encryption_version,
+            create_time, update_time
         ) VALUES (
-            #{employeeId}, #{year}, #{month}, #{basicSalary}, #{attendanceDeduction}, #{leaveDeduction},
-            #{overtimePay}, #{grossPay}, #{socialInsurancePersonal}, #{housingFundPersonal},
-            #{taxableIncome}, #{tax}, #{otherDeduction}, #{netPay}, #{probationRatio},
+            #{employeeId}, #{year}, #{month},
+            #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{attendanceDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{leaveDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{overtimePay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{grossPay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{socialInsurancePersonal, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{housingFundPersonal, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{taxableIncome, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{tax, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{otherDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{netPay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{probationRatio},
             #{leaveDays}, #{overtimeHours}, #{lateCount}, #{earlyCount}, #{absentCount},
-            #{warnings}, #{status}, NOW(), NOW()
+            #{warnings}, #{status}, 1,
+            NOW(), NOW()
         )
     </insert>
 
     <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_record (
-            employee_id, year, month, basic_salary, attendance_deduction, leave_deduction,
-            overtime_pay, gross_pay, social_insurance_personal, housing_fund_personal,
-            taxable_income, tax, other_deduction, net_pay, probation_ratio,
+            employee_id, year, month,
+            basic_salary, attendance_deduction, leave_deduction,
+            overtime_pay, gross_pay,
+            social_insurance_personal, housing_fund_personal,
+            taxable_income, tax, other_deduction, net_pay,
+            probation_ratio,
             leave_days, overtime_hours, late_count, early_count, absent_count,
-            warnings, status, create_time, update_time
+            warnings, status, encryption_version,
+            create_time, update_time
         ) VALUES
         <foreach collection="list" item="item" separator=",">
         (
-            #{item.employeeId}, #{item.year}, #{item.month}, #{item.basicSalary},
-            #{item.attendanceDeduction}, #{item.leaveDeduction}, #{item.overtimePay},
-            #{item.grossPay}, #{item.socialInsurancePersonal}, #{item.housingFundPersonal},
-            #{item.taxableIncome}, #{item.tax}, #{item.otherDeduction}, #{item.netPay},
-            #{item.probationRatio}, #{item.leaveDays}, #{item.overtimeHours},
-            #{item.lateCount}, #{item.earlyCount}, #{item.absentCount},
-            #{item.warnings}, #{item.status}, NOW(), NOW()
+            #{item.employeeId}, #{item.year}, #{item.month},
+            #{item.basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.attendanceDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.leaveDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.overtimePay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.grossPay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.socialInsurancePersonal, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.housingFundPersonal, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.taxableIncome, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.tax, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.otherDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.netPay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{item.probationRatio},
+            #{item.leaveDays}, #{item.overtimeHours}, #{item.lateCount}, #{item.earlyCount}, #{item.absentCount},
+            #{item.warnings}, #{item.status}, 1,
+            NOW(), NOW()
         )
         </foreach>
     </insert>
@@ -89,7 +137,13 @@
     </select>
 
     <select id="selectByDeptAndMonth" resultMap="BaseResultMap">
-        SELECT sr.* FROM salary_record sr
+        SELECT sr.id, sr.employee_id, sr.year, sr.month,
+               <include refid="MoneyEncrypted"/>,
+               sr.probation_ratio,
+               sr.leave_days, sr.overtime_hours, sr.late_count, sr.early_count, sr.absent_count,
+               sr.warnings, sr.status, sr.encryption_version,
+               sr.create_time, sr.update_time
+        FROM salary_record sr
         INNER JOIN employee e ON sr.employee_id = e.id
         WHERE e.dept_id = #{deptId} AND sr.year = #{year} AND sr.month = #{month}
     </select>

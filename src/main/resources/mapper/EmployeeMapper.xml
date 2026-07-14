@@ -9,12 +9,19 @@
         <result column="name" property="name"/>
         <!-- 个人信息 -->
         <result column="gender" property="gender"/>
-        <result column="phone" property="phone"/>
-        <result column="email" property="email"/>
-        <result column="id_card" property="idCard"/>
+        <result column="phone" property="phone"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="phone_hash" property="phoneHash"/>
+        <result column="email" property="email"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="id_card" property="idCard"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="id_card_hash" property="idCardHash"/>
         <result column="birthday" property="birthday"/>
-        <result column="registered_address" property="registeredAddress"/>
-        <result column="current_address" property="currentAddress"/>
+        <result column="registered_address" property="registeredAddress"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="current_address" property="currentAddress"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
         <!-- 部门与职位 -->
         <result column="dept_id" property="deptId"/>
         <result column="position_id" property="positionId"/>
@@ -25,9 +32,13 @@
         <result column="entry_type" property="entryType"/>
         <!-- 薪资信息 -->
         <result column="salary_account_id" property="salaryAccountId"/>
-        <result column="base_salary" property="baseSalary"/>
-        <result column="bank_account" property="bankAccount"/>
-        <result column="bank_name" property="bankName"/>
+        <result column="base_salary" property="baseSalary"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
+        <result column="bank_account" property="bankAccount"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
+        <result column="bank_account_hash" property="bankAccountHash"/>
+        <result column="bank_name" property="bankName"
+                typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
         <!-- 状态与时间 -->
         <result column="status" property="status"/>
         <result column="entry_date" property="entryDate"/>
@@ -36,17 +47,27 @@
         <result column="user_id" property="userId"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
+        <result column="encryption_version" property="encryptionVersion"/>
     </resultMap>
 
-    <!-- 基础字段列表（避免 SELECT *） -->
+    <!-- 基础字段列表：查询加密列（利用 COALESCE 兼容迁移期明文列回退） -->
     <sql id="BaseColumns">
         id, employee_no, name,
-        gender, phone, email, id_card, birthday, registered_address, current_address,
+        gender,
+        phone, phone_hash,
+        email,
+        id_card, id_card_hash,
+        birthday,
+        registered_address,
+        current_address,
         dept_id, position_id, grade,
         report_to, work_location, entry_type,
-        salary_account_id, base_salary, bank_account, bank_name,
+        salary_account_id,
+        base_salary,
+        bank_account, bank_account_hash,
+        bank_name,
         status, entry_date, regular_date, resign_date, user_id,
-        create_time, update_time
+        create_time, update_time, encryption_version
     </sql>
 
 
@@ -60,12 +81,14 @@
         SELECT <include refid="BaseColumns"/> FROM employee WHERE employee_no = #{employeeNo}
     </select>
 
-    <select id="selectByPhone" resultMap="BaseResultMap">
-        SELECT <include refid="BaseColumns"/> FROM employee WHERE phone = #{phone} LIMIT 1
+    <!-- 按手机号哈希精确查询 -->
+    <select id="selectByPhoneHash" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE phone_hash = #{phoneHash} LIMIT 1
     </select>
 
-    <select id="selectByIdCard" resultMap="BaseResultMap">
-        SELECT <include refid="BaseColumns"/> FROM employee WHERE id_card = #{idCard} LIMIT 1
+    <!-- 按身份证号哈希精确查询 -->
+    <select id="selectByIdCardHash" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE id_card_hash = #{idCardHash} LIMIT 1
     </select>
 
     <select id="selectByDeptId" resultMap="BaseResultMap">
@@ -77,7 +100,7 @@
         SELECT <include refid="BaseColumns"/> FROM employee ORDER BY id DESC
     </select>
 
-    <!-- 分页条件查询 -->
+    <!-- 分页条件查询（keyword 仅匹配 name 和 employeeNo，加密字段不支持 LIKE） -->
     <select id="selectByCondition" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/> FROM employee
         <where>
@@ -89,8 +112,7 @@
             </if>
             <if test="keyword != null and keyword != ''">
                 AND (name LIKE CONCAT('%', #{keyword}, '%')
-                     OR employee_no LIKE CONCAT('%', #{keyword}, '%')
-                     OR phone LIKE CONCAT('%', #{keyword}, '%'))
+                     OR employee_no LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
         ORDER BY id DESC
@@ -108,8 +130,7 @@
             </if>
             <if test="keyword != null and keyword != ''">
                 AND (name LIKE CONCAT('%', #{keyword}, '%')
-                     OR employee_no LIKE CONCAT('%', #{keyword}, '%')
-                     OR phone LIKE CONCAT('%', #{keyword}, '%'))
+                     OR employee_no LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
     </select>
@@ -193,18 +214,41 @@
             useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO employee (
             employee_no, name,
-            gender, phone, email, id_card, birthday, registered_address, current_address,
+            gender,
+            phone, phone_hash,
+            email,
+            id_card, id_card_hash,
+            birthday,
+            registered_address,
+            current_address,
             dept_id, position_id, grade,
             report_to, work_location, entry_type,
-            salary_account_id, base_salary, bank_account, bank_name,
-            status, entry_date, regular_date, resign_date, user_id
+            salary_account_id,
+            base_salary,
+            bank_account, bank_account_hash,
+            bank_name,
+            status, entry_date, regular_date, resign_date, user_id,
+            encryption_version
         ) VALUES (
             #{employeeNo}, #{name},
-            #{gender}, #{phone}, #{email}, #{idCard}, #{birthday}, #{registeredAddress}, #{currentAddress},
+            #{gender},
+            #{phone, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+            #{phoneHash},
+            #{email, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+            #{idCard, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+            #{idCardHash},
+            #{birthday},
+            #{registeredAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+            #{currentAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
             #{deptId}, #{positionId}, #{grade},
             #{reportTo}, #{workLocation}, #{entryType},
-            #{salaryAccountId}, #{baseSalary}, #{bankAccount}, #{bankName},
-            #{status}, #{entryDate}, #{regularDate}, #{resignDate}, #{userId}
+            #{salaryAccountId},
+            #{baseSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            #{bankAccount, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+            #{bankAccountHash},
+            #{bankName, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
+            #{status}, #{entryDate}, #{regularDate}, #{resignDate}, #{userId},
+            1
         )
     </insert>
 
@@ -213,12 +257,14 @@
         <set>
             <if test="name != null">name = #{name},</if>
             <if test="gender != null">gender = #{gender},</if>
-            <if test="phone != null">phone = #{phone},</if>
-            <if test="email != null">email = #{email},</if>
-            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="phone != null">phone = #{phone, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="phoneHash != null">phone_hash = #{phoneHash},</if>
+            <if test="email != null">email = #{email, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="idCard != null">id_card = #{idCard, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="idCardHash != null">id_card_hash = #{idCardHash},</if>
             <if test="birthday != null">birthday = #{birthday},</if>
-            <if test="registeredAddress != null">registered_address = #{registeredAddress},</if>
-            <if test="currentAddress != null">current_address = #{currentAddress},</if>
+            <if test="registeredAddress != null">registered_address = #{registeredAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="currentAddress != null">current_address = #{currentAddress, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
             <if test="deptId != null">dept_id = #{deptId},</if>
             <if test="positionId != null">position_id = #{positionId},</if>
             <if test="grade != null">grade = #{grade},</if>
@@ -226,9 +272,10 @@
             <if test="workLocation != null">work_location = #{workLocation},</if>
             <if test="entryType != null">entry_type = #{entryType},</if>
             <if test="salaryAccountId != null">salary_account_id = #{salaryAccountId},</if>
-            <if test="baseSalary != null">base_salary = #{baseSalary},</if>
-            <if test="bankAccount != null">bank_account = #{bankAccount},</if>
-            <if test="bankName != null">bank_name = #{bankName},</if>
+            <if test="baseSalary != null">base_salary = #{baseSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},</if>
+            <if test="bankAccount != null">bank_account = #{bankAccount, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
+            <if test="bankAccountHash != null">bank_account_hash = #{bankAccountHash},</if>
+            <if test="bankName != null">bank_name = #{bankName, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},</if>
             <if test="status != null">status = #{status},</if>
             <if test="entryDate != null">entry_date = #{entryDate},</if>
             <if test="regularDate != null">regular_date = #{regularDate},</if>
@@ -241,5 +288,17 @@
     <delete id="deleteById">
         DELETE FROM employee WHERE id = #{id}
     </delete>
+
+    <!-- ═══════════════ 兼容旧方法（迁移期明文 → 加密过渡） ═══════════════ -->
+
+    <!-- 按手机号明文查询（仅用于迁移期间，迁移完成后废弃） -->
+    <select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE phone = #{phone} LIMIT 1
+    </select>
+
+    <!-- 按身份证号明文查询（仅用于迁移期间，迁移完成后废弃） -->
+    <select id="selectByIdCard" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE id_card = #{idCard} LIMIT 1
+    </select>
 
 </mapper>
