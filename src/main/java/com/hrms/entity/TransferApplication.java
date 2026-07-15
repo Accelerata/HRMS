@@ -21,6 +21,12 @@ public class TransferApplication {
     private Long fromPositionId;
     /** 新职位ID */
     private Long toPositionId;
+    /** 目标职级 */
+    private String toGrade;
+    /** 新汇报人ID */
+    private Long toReportTo;
+    /** 调岗薪资调整金额 */
+    private java.math.BigDecimal salaryAdjust;
     /** 调岗原因 */
     private String transferReason;
     /** 生效日期 */

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.GradeSalaryRangeMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.GradeSalaryRange">
+        <id column="id" property="id"/>
+        <result column="grade_code" property="gradeCode"/>
+        <result column="min_salary" property="minSalary"/>
+        <result column="max_salary" property="maxSalary"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM `grade_salary_range`
+        WHERE status = 1
+        ORDER BY grade_code ASC
+    </select>
+
+    <select id="selectByGradeCode" resultMap="BaseResultMap">
+        SELECT * FROM `grade_salary_range`
+        WHERE grade_code = #{gradeCode} AND status = 1
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `grade_salary_range` (grade_code, min_salary, max_salary, status, create_time, update_time)
+        VALUES (#{gradeCode}, #{minSalary}, #{maxSalary}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE `grade_salary_range`
+        SET grade_code  = #{gradeCode},
+            min_salary  = #{minSalary},
+            max_salary  = #{maxSalary},
+            status      = #{status},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM `grade_salary_range` WHERE id = #{id}
+    </delete>
+
+</mapper>

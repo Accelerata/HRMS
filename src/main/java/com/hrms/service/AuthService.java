@@ -69,6 +69,9 @@ public class AuthService {
         String roleName = role != null ? role.getRoleName() : "普通员工";
         Integer dataScope = role != null ? role.getDataScope() : 5;
 
+        // 4.5 校验是否需要强制改密
+        boolean needChangePwd = user.getForceChangePwd() != null && user.getForceChangePwd() == 1;
+
         // 5. 查询权限码
         List<String> permissions = sysPermissionMapper.findPermissionCodesByUserId(user.getId());
         // 系统管理员默认拥有所有权限
@@ -100,6 +103,32 @@ public class AuthService {
                 .roleName(roleName)
                 .dataScope(dataScope)
                 .permissions(permissions)
+                .needChangePwd(needChangePwd)
                 .build();
+    }
+
+    /**
+     * 修改密码
+     *
+     * @param userId      当前用户ID
+     * @param oldPassword 旧密码
+     * @param newPassword 新密码
+     */
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        if (userId == null) {
+            throw new BaseException(401, "未登录");
+        }
+        SysUser user = sysUserMapper.findById(userId);
+        if (user == null) {
+            throw BaseException.notFound("用户不存在");
+        }
+        if (!PasswordUtil.matches(oldPassword, user.getPassword())) {
+            throw BaseException.badRequest("旧密码错误");
+        }
+        if (!PasswordUtil.isStrong(newPassword)) {
+            throw BaseException.badRequest("新密码不符合要求：至少8位，包含大小写字母和数字");
+        }
+        sysUserMapper.updatePassword(userId, PasswordUtil.encode(newPassword));
+        log.info("密码修改成功: userId={}", userId);
     }
 }

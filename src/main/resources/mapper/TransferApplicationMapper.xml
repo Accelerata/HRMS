@@ -9,6 +9,10 @@
         <result column="to_dept_id" property="toDeptId"/>
         <result column="from_position_id" property="fromPositionId"/>
         <result column="to_position_id" property="toPositionId"/>
+        <result column="to_grade" property="toGrade"/>
+        <result column="to_report_to" property="toReportTo"/>
+        <result column="salary_adjust" property="salaryAdjust"
+                typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="transfer_reason" property="transferReason"/>
         <result column="effective_date" property="effectiveDate"/>
         <result column="old_manager_approved" property="oldManagerApproved"/>
@@ -46,9 +50,11 @@
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO transfer_application
         (employee_id, from_dept_id, to_dept_id, from_position_id, to_position_id,
+         to_grade, to_report_to, salary_adjust,
          transfer_reason, effective_date, old_manager_approved, new_manager_approved, status, submitter_id)
         VALUES
         (#{employeeId}, #{fromDeptId}, #{toDeptId}, #{fromPositionId}, #{toPositionId},
+         #{toGrade}, #{toReportTo}, #{salaryAdjust, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
          #{transferReason}, #{effectiveDate}, #{oldManagerApproved}, #{newManagerApproved}, #{status}, #{submitterId})
     </insert>
 

@@ -12,13 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.Map;
 
 /**
  * 入职管理 Controller
- *
- * 权限说明：
- * - 提交/编辑入职申请：ROLE_ADMIN, ROLE_HR（需 onboarding:manage）
- * - 审批入职申请：ROLE_ADMIN, ROLE_HR, 目标部门主管（Service 层校验审批人身份）
  */
 @RestController
 @RequestMapping("/api/v1/onboarding")
@@ -61,6 +58,18 @@ public class OnboardingController {
         return Result.success();
     }
 
+    @DeleteMapping("/{id}")
+    public Result<Object> deleteDraft(@PathVariable Long id) {
+        onboardingService.deleteDraft(id);
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/withdraw")
+    public Result<Object> withdraw(@PathVariable Long id) {
+        onboardingService.withdraw(id);
+        return Result.success();
+    }
+
     @PutMapping("/{id}/approve")
     public Result<OnboardingResultVO> approve(@PathVariable Long id,
                                                @Valid @RequestBody ApprovalActionDTO dto) {
@@ -68,6 +77,24 @@ public class OnboardingController {
         if (result != null) {
             return Result.success(result);
         }
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/confirm-arrival")
+    public Result<Object> confirmArrival(@PathVariable Long id) {
+        onboardingService.confirmArrival(id);
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/entry-date")
+    public Result<Object> updateEntryDate(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        onboardingService.updateEntryDate(id, body.get("entryDate"));
+        return Result.success();
+    }
+
+    @PostMapping("/{id}/abandon")
+    public Result<Object> markAbandon(@PathVariable Long id) {
+        onboardingService.markAbandon(id);
         return Result.success();
     }
 }

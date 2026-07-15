@@ -1,9 +1,7 @@
 package com.hrms.mapper;
 
 import com.hrms.entity.SysUser;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
 /**
  * 系统用户 Mapper
@@ -24,4 +22,25 @@ public interface SysUserMapper {
             "WHERE r.role_code = #{roleCode} AND u.status = 1 " +
             "LIMIT 1")
     SysUser findFirstByRoleCode(@Param("roleCode") String roleCode);
+
+    /** 新增系统用户（自动回填主键） */
+    @Insert("INSERT INTO sys_user (username, password, status, login_fail_count, force_change_pwd, pwd_update_time, create_time) " +
+            "VALUES (#{username}, #{password}, #{status}, #{loginFailCount}, #{forceChangePwd}, NOW(), NOW())")
+    @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
+    int insert(SysUser user);
+
+    /** 更新用户状态（禁用/启用） */
+    @Update("UPDATE sys_user SET status = #{status}, update_time = NOW() WHERE id = #{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    /** 更新密码 */
+    @Update("UPDATE sys_user SET password = #{password}, force_change_pwd = 0, pwd_update_time = NOW(), update_time = NOW() WHERE id = #{id}")
+    int updatePassword(@Param("id") Long id, @Param("password") String password);
+
+    /** 更新用户信息 */
+    @Update("UPDATE sys_user SET username = #{username}, password = #{password}, status = #{status}, " +
+            "force_change_pwd = #{forceChangePwd}, pwd_update_time = #{pwdUpdateTime}, " +
+            "last_login_time = #{lastLoginTime}, update_time = NOW() WHERE id = #{id}")
+    int update(SysUser user);
 }
+

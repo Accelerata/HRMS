@@ -17,6 +17,10 @@ public class RegularizationApplication {
     private BigDecimal formalSalary;
     /** 试用期工作小结 */
     private String probationSummary;
+    /** 转正审批结果类型: 1-通过转正 2-延长试用 3-不通过辞退 */
+    private Integer resultType;
+    /** 延长试用月数 */
+    private Integer extendedMonths;
     /** 直属上级评语 */
     private String supervisorComment;
     /** 状态: 0-草稿 1-审批中 2-已通过 3-已拒绝 */

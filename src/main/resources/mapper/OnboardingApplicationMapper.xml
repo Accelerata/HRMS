@@ -27,6 +27,8 @@
         <result column="report_to" property="reportTo"/>
         <result column="work_location" property="workLocation"/>
         <result column="entry_type" property="entryType"/>
+        <result column="employment_type" property="employmentType"/>
+        <result column="probation_salary_ratio" property="probationSalaryRatio"/>
         <result column="salary_account_id" property="salaryAccountId"/>
         <result column="bank_account" property="bankAccount"
                 typeHandler="com.hrms.crypto.EncryptedStringTypeHandler"/>
@@ -100,6 +102,7 @@
          target_dept_id, target_position_id,
          offer_salary,
          probation_months, grade, report_to, work_location, entry_type,
+         employment_type, probation_salary_ratio,
          salary_account_id,
          bank_account, bank_account_hash,
          bank_name,
@@ -118,6 +121,7 @@
          #{targetDeptId}, #{targetPositionId},
          #{offerSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
          #{probationMonths}, #{grade}, #{reportTo}, #{workLocation}, #{entryType},
+         #{employmentType}, #{probationSalaryRatio},
          #{salaryAccountId},
          #{bankAccount, typeHandler=com.hrms.crypto.EncryptedStringTypeHandler},
          #{bankAccountHash},
@@ -199,5 +203,9 @@
     <select id="selectByStatus" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/> FROM onboarding_application WHERE status = #{status}
     </select>
+
+    <delete id="deleteById">
+        DELETE FROM onboarding_application WHERE id = #{id}
+    </delete>
 
 </mapper>

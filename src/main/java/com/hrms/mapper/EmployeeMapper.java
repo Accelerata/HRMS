@@ -75,6 +75,15 @@ public interface EmployeeMapper {
     /** 试用期即将到期员工（N天内） */
     List<Employee> selectExpiringProbation(@Param("days") int days);
 
+    /** 查询指定年份+部门编码的最大工号序号 */
+    int selectMaxEmployeeNoSeq(@Param("year") String year, @Param("deptCode") String deptCode);
+
+    /** 查询试用期员工（用于定时扫描转正提醒，entryDate + probationMonths - 7 <= today 且未发起转正） */
+    List<Employee> selectProbationForRegularizationReminder(@Param("deductDays") int deductDays);
+
+    /** 查询待离职且到达离职日期的员工 */
+    List<Employee> selectPendingResignByDate(@Param("today") java.time.LocalDate today);
+
     // ────────────── 写操作 ──────────────
 
     /** 新增员工（自动回填主键ID） */

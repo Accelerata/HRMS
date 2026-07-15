@@ -10,6 +10,7 @@
         <result column="grade_range" property="gradeRange"/>
         <result column="default_probation_months" property="defaultProbationMonths"/>
         <result column="description" property="description"/>
+        <result column="is_standard" property="isStandard"/>
         <result column="status" property="status"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
@@ -33,9 +34,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `position` (position_name, position_code, `sequence`, grade_range,
-                                default_probation_months, description, status, create_time, update_time)
+                                default_probation_months, description, is_standard, status, create_time, update_time)
         VALUES (#{positionName}, #{positionCode}, #{sequence}, #{gradeRange},
-                #{defaultProbationMonths}, #{description}, #{status}, NOW(), NOW())
+                #{defaultProbationMonths}, #{description}, #{isStandard}, #{status}, NOW(), NOW())
     </insert>
 
     <update id="update">
@@ -46,6 +47,7 @@
             grade_range              = #{gradeRange},
             default_probation_months = #{defaultProbationMonths},
             description              = #{description},
+            is_standard              = #{isStandard},
             status                   = #{status},
             update_time              = NOW()
         WHERE id = #{id}

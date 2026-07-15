@@ -8,6 +8,8 @@
         <result column="formal_salary" property="formalSalary"
                 typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_summary" property="probationSummary"/>
+        <result column="result_type" property="resultType"/>
+        <result column="extended_months" property="extendedMonths"/>
         <result column="supervisor_comment" property="supervisorComment"/>
         <result column="status" property="status"/>
         <result column="submitter_id" property="submitterId"/>
@@ -28,6 +30,8 @@
         <result column="formal_salary" property="formalSalary"
                 typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="probation_summary" property="probationSummary"/>
+        <result column="result_type" property="resultType"/>
+        <result column="extended_months" property="extendedMonths"/>
         <result column="supervisor_comment" property="supervisorComment"/>
         <result column="status" property="status"/>
         <result column="submitter_id" property="submitterId"/>
@@ -39,11 +43,11 @@
     <insert id="insert" parameterType="com.hrms.entity.RegularizationApplication"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO regularization_application
-        (employee_id, formal_salary, probation_summary, supervisor_comment, status, submitter_id, encryption_version)
+        (employee_id, formal_salary, probation_summary, result_type, extended_months, supervisor_comment, status, submitter_id, encryption_version)
         VALUES
         (#{employeeId},
          #{formalSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
-         #{probationSummary}, #{supervisorComment}, #{status}, #{submitterId}, 1)
+         #{probationSummary}, #{resultType}, #{extendedMonths}, #{supervisorComment}, #{status}, #{submitterId}, 1)
     </insert>
 
     <update id="update" parameterType="com.hrms.entity.RegularizationApplication">
@@ -52,6 +56,8 @@
             <if test="formalSalary != null">formal_salary = #{formalSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},</if>
             <if test="probationSummary != null">probation_summary = #{probationSummary},</if>
             <if test="supervisorComment != null">supervisor_comment = #{supervisorComment},</if>
+            <if test="resultType != null">result_type = #{resultType},</if>
+            <if test="extendedMonths != null">extended_months = #{extendedMonths},</if>
             <if test="status != null">status = #{status},</if>
         </set>
         WHERE id = #{id}

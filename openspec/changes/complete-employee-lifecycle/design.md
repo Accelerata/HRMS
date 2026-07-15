@@ -93,6 +93,18 @@
 
 **理由**：需求多处要求通知，但项目无任何通知设施。先以最小可用落地，不阻塞主流程；RocketMQ 集成作为后续。
 
+### 11. 入职二审条件化（task 2.8）
+
+**选择**：
+- **标准/非标准职位**：`Position` 表新增 `is_standard` 字段（TINYINT，默认 1=标准，0=非标准），由 HR 在维护职位时手动标记。
+- **薪资超职级范围**：新建 `grade_salary_range` 表（grade_code + min_salary + max_salary），独立于 Position，支持按职级精确配置薪资带宽。
+- **判定位置**：在 `OnboardingService.submit()` 中完成查询和判断，将 `needHr`（boolean）传入 `ApprovalContext`，`startApproval()` 据此跳过 HR 审批步骤。
+- **模板扩展**：`approval_template` 表新增 `condition_expr` 字段（VARCHAR，NULL=无条件），为后续其他业务类型（如调岗薪资调整触发额外审批）的条件化预留通用机制。
+
+**判定逻辑**：标准职位 + 薪资在范围内 → 仅部门主管审批（跳过 HR）；其他任一条件不满足 → 部门主管 + HR 双审。
+
+**理由**：需求 5.1 和 onboarding-flow spec 明确二审为可选，仅非标准职位或薪资超范围时触发。当前 Position 无 isStandard 标记、全项目无薪资范围对照数据，需补齐基础设施。将判定放在 OnboardingService 而非状态机内，保持状态机通用性，避免业务规则侵入审批引擎。
+
 ## Risks / Trade-offs
 
 - **[改动面大]** 涉及四大流程 + 公共底座 + 审批引擎，回归风险高 → 通过 tasks.md 分阶段（底座先行，再逐个流程），每阶段编译+测试；每完成一个模块检查权限（CLAUDE.md 要求）。
@@ -104,7 +116,7 @@
 
 ## Open Questions
 
-1. 入职二审「非标准职位/薪资超职级范围」的判定规则：是否以 `Position` 的职级范围 + `offer_salary` 比较即可？「非标准职位」如何定义（职位库中标记？）。
+1. ~~入职二审「非标准职位/薪资超职级范围」的判定规则~~ **【已决议】**：`Position` 新增 `is_standard` 字段标记非标准职位；新建 `grade_salary_range` 表定义各职级薪资带宽；判定在 `OnboardingService.submit()` 中完成，见 Decision 11。
 2. 转正「不通过」是否必须自动进入离职流程，还是仅标记待离职由 HR 手动处理？
 3. 通知本期只做站内信是否可接受？还是必须接 RocketMQ/邮件？
 4. 离职工号「本年度可复用」——工号含年份，复用是否指同一部门编码序号段复用？需确认复用策略，避免与唯一约束冲突。

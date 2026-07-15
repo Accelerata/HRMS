@@ -37,6 +37,12 @@ public class Position {
     /** 职位描述 */
     private String description;
 
+    /**
+     * 是否标准职位：1-标准职位 0-非标准职位
+     * 非标准职位入职时需要额外 HR 二审
+     */
+    private Integer isStandard;
+
     /** 状态：0-禁用，1-正常 */
     private Integer status;
 

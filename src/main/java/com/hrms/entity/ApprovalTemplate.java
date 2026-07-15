@@ -18,6 +18,11 @@ public class ApprovalTemplate {
     private String approverTarget;
     /** 步骤名称 */
     private String stepName;
+    /**
+     * 条件表达式（NULL=无条件）
+     * 用于动态审批步骤控制，如 'needHr' 表示需要 HR 审批时才生成该步骤
+     */
+    private String conditionExpr;
     /** 创建时间 */
     private LocalDateTime createTime;
 }

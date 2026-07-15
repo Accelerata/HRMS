@@ -29,4 +29,7 @@ public interface OnboardingApplicationMapper {
 
     /** 根据状态查询列表 */
     List<OnboardingApplication> selectByStatus(@Param("status") Integer status);
+
+    /** 根据ID删除 */
+    int deleteById(@Param("id") Long id);
 }

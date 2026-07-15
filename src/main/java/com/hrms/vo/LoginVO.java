@@ -35,4 +35,7 @@ public class LoginVO {
 
     /** 权限码列表 */
     private List<String> permissions;
+
+    /** 是否需要强制改密（首次登录） */
+    private Boolean needChangePwd;
 }

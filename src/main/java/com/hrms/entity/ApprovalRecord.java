@@ -28,6 +28,8 @@ public class ApprovalRecord {
     private Integer isPending;
     /** 审批操作时间 */
     private LocalDateTime operateTime;
+    /** 审批截止时间（每级48h，超时催办） */
+    private LocalDateTime dueTime;
     /** 创建时间 */
     private LocalDateTime createTime;
 }

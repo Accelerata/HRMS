@@ -56,6 +56,10 @@ public class OnboardingApplication {
     private String workLocation;
     /** 入职类型: 1-社招 2-校招 3-内推 4-调动 */
     private Integer entryType;
+    /** 录用类型: 1-全职 2-兼职 3-实习 */
+    private Integer employmentType;
+    /** 试用期薪资比例（如0.80表示80%） */
+    private java.math.BigDecimal probationSalaryRatio;
     /** 薪资账套ID */
     private Long salaryAccountId;
     /** 银行账号 */

@@ -49,4 +49,35 @@ public final class PasswordUtil {
     public static boolean matches(String rawPassword, String encodedPassword) {
         return ENCODER.matches(rawPassword, encodedPassword);
     }
+
+    /**
+     * 生成随机密码（8位，包含大小写字母和数字）
+     */
+    public static String generateRandomPassword() {
+        String upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String lower = "abcdefghijklmnopqrstuvwxyz";
+        String digits = "0123456789";
+        String all = upper + lower + digits;
+
+        // 确保至少包含：1个大写 + 1个小写 + 1个数字
+        StringBuilder sb = new StringBuilder();
+        sb.append(upper.charAt((int) (Math.random() * upper.length())));
+        sb.append(lower.charAt((int) (Math.random() * lower.length())));
+        sb.append(digits.charAt((int) (Math.random() * digits.length())));
+
+        // 剩余5位随机
+        for (int i = 0; i < 5; i++) {
+            sb.append(all.charAt((int) (Math.random() * all.length())));
+        }
+
+        // 打乱顺序
+        char[] chars = sb.toString().toCharArray();
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = (int) (Math.random() * (i + 1));
+            char temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
+        return new String(chars);
+    }
 }

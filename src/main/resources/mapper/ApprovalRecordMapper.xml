@@ -13,16 +13,17 @@
         <result column="comment" property="comment"/>
         <result column="is_pending" property="isPending"/>
         <result column="operate_time" property="operateTime"/>
+        <result column="due_time" property="dueTime"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 
     <insert id="insertBatch" parameterType="list">
         INSERT INTO approval_record
-        (business_type, business_id, step_order, approver_id, approver_name, is_pending, create_time)
+        (business_type, business_id, step_order, approver_id, approver_name, is_pending, due_time, create_time)
         VALUES
         <foreach collection="list" item="item" separator=",">
             (#{item.businessType}, #{item.businessId}, #{item.stepOrder},
-             #{item.approverId}, #{item.approverName}, 1, NOW())
+             #{item.approverId}, #{item.approverName}, 1, #{item.dueTime}, NOW())
         </foreach>
     </insert>
 
@@ -65,6 +66,24 @@
 
     <select id="selectById" resultMap="BaseResultMap">
         SELECT * FROM approval_record WHERE id = #{id}
+    </select>
+
+    <!-- 顺序门控：检查是否有更低 step_order 的未处理记录 -->
+    <select id="countLowerPending" resultType="int">
+        SELECT COUNT(*) FROM approval_record
+        WHERE business_type = #{businessType}
+          AND business_id = #{businessId}
+          AND is_pending = 1
+          AND step_order &lt; #{stepOrder}
+    </select>
+
+    <!-- 查询超时未处理的审批记录 -->
+    <select id="selectOverduePending" resultMap="BaseResultMap">
+        SELECT * FROM approval_record
+        WHERE is_pending = 1
+          AND due_time IS NOT NULL
+          AND due_time &lt; NOW()
+        ORDER BY due_time ASC
     </select>
 
 </mapper>

@@ -37,4 +37,12 @@ public interface ApprovalRecordMapper {
 
     /** 根据ID查询 */
     ApprovalRecord selectById(@Param("id") Long id);
+
+    /** 查询是否有更低 step_order 的未处理记录（顺序门控） */
+    int countLowerPending(@Param("businessType") Integer businessType,
+                          @Param("businessId") Long businessId,
+                          @Param("stepOrder") Integer stepOrder);
+
+    /** 查询超时未处理的审批记录（due_time < now 且 is_pending=1） */
+    List<ApprovalRecord> selectOverduePending();
 }

@@ -8,6 +8,7 @@
         <result column="step_order" property="stepOrder"/>
         <result column="approver_target" property="approverTarget"/>
         <result column="step_name" property="stepName"/>
+        <result column="condition_expr" property="conditionExpr"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 

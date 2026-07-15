@@ -289,6 +289,35 @@
         DELETE FROM employee WHERE id = #{id}
     </delete>
 
+    <!-- ═══════════════ 工号与定时扫描 ═══════════════ -->
+
+    <!-- 查询指定年份+部门编码前缀的最大序号（取 employee_no 后3位） -->
+    <select id="selectMaxEmployeeNoSeq" resultType="int">
+        SELECT COALESCE(MAX(CAST(SUBSTRING(employee_no, 7, 3) AS UNSIGNED)), 0)
+        FROM employee
+        WHERE employee_no LIKE CONCAT(#{year}, #{deptCode}, '%')
+    </select>
+
+    <!-- 查询试用期到期前需转正的员工（status=试用期 且 regularDate - N天 <= today 且未发起转正） -->
+    <select id="selectProbationForRegularizationReminder" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee
+        WHERE status = 1
+          AND regular_date IS NOT NULL
+          AND DATE_SUB(regular_date, INTERVAL #{deductDays} DAY) &lt;= CURDATE()
+          AND id NOT IN (
+              SELECT DISTINCT employee_id FROM regularization_application
+              WHERE status IN (0, 1)
+          )
+    </select>
+
+    <!-- 查询待离职且到达离职日期的员工 -->
+    <select id="selectPendingResignByDate" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee
+        WHERE status = 3
+          AND resign_date IS NOT NULL
+          AND resign_date &lt;= #{today}
+    </select>
+
     <!-- ═══════════════ 兼容旧方法（迁移期明文 → 加密过渡） ═══════════════ -->
 
     <!-- 按手机号明文查询（仅用于迁移期间，迁移完成后废弃） -->

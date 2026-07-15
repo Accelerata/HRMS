@@ -4,14 +4,15 @@ import lombok.Getter;
 
 /**
  * 离职类型枚举
+ * 辞职/辞退/合同到期不续签/其他
  */
 @Getter
 public enum ResignationTypeEnum {
 
-    VOLUNTARY(1, "主动离职"),
-    NEGOTIATED(2, "协商离职"),
-    CONTRACT_EXPIRY(3, "合同到期"),
-    LAYOFF(4, "裁员");
+    RESIGNATION(1, "辞职"),
+    DISMISSAL(2, "辞退"),
+    CONTRACT_EXPIRY(3, "合同到期不续签"),
+    OTHER(4, "其他");
 
     private final int code;
     private final String label;
@@ -25,6 +26,6 @@ public enum ResignationTypeEnum {
         for (ResignationTypeEnum e : values()) {
             if (e.code == code) return e;
         }
-        return VOLUNTARY;
+        return OTHER;
     }
 }

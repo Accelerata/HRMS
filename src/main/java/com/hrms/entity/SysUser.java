@@ -22,6 +22,12 @@ public class SysUser {
     /** 账号状态：0-禁用，1-正常 */
     private Integer status;
 
+    /** 连续登录失败次数 */
+    private Integer loginFailCount;
+
+    /** 是否强制修改密码：0-否 1-是（首次登录强制改密） */
+    private Integer forceChangePwd;
+
     /** 密码最后修改时间(用于90天强制更换校验) */
     private LocalDateTime pwdUpdateTime;
 
