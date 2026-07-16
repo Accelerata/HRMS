@@ -9,6 +9,10 @@
         <result column="step_order" property="stepOrder"/>
         <result column="approver_id" property="approverId"/>
         <result column="approver_name" property="approverName"/>
+        <result column="original_approver_id" property="originalApproverId"/>
+        <result column="original_approver_name" property="originalApproverName"/>
+        <result column="assign_type" property="assignType"/>
+        <result column="submitter_id" property="submitterId"/>
         <result column="action" property="action"/>
         <result column="comment" property="comment"/>
         <result column="is_pending" property="isPending"/>
@@ -19,11 +23,15 @@
 
     <insert id="insertBatch" parameterType="list">
         INSERT INTO approval_record
-        (business_type, business_id, step_order, approver_id, approver_name, is_pending, due_time, create_time)
+        (business_type, business_id, step_order, approver_id, approver_name,
+         original_approver_id, original_approver_name, assign_type, submitter_id,
+         is_pending, due_time, create_time)
         VALUES
         <foreach collection="list" item="item" separator=",">
             (#{item.businessType}, #{item.businessId}, #{item.stepOrder},
-             #{item.approverId}, #{item.approverName}, 1, #{item.dueTime}, NOW())
+             #{item.approverId}, #{item.approverName},
+             #{item.originalApproverId}, #{item.originalApproverName}, #{item.assignType}, #{item.submitterId},
+             1, #{item.dueTime}, NOW())
         </foreach>
     </insert>
 
@@ -85,5 +93,28 @@
           AND due_time &lt; NOW()
         ORDER BY due_time ASC
     </select>
+
+    <!-- 转交/改派：更新审批人并留存原审批人 -->
+    <update id="reassign">
+        UPDATE approval_record
+        SET approver_id           = #{newApproverId},
+            approver_name         = #{newApproverName},
+            original_approver_id   = #{originalApproverId},
+            original_approver_name = #{originalApproverName},
+            assign_type            = #{assignType}
+        WHERE id = #{id}
+          AND is_pending = 1
+    </update>
+
+    <!-- 关闭某业务所有未处理审批记录（撤回/取消时使用） -->
+    <update id="closePendingByBusiness">
+        UPDATE approval_record
+        SET is_pending   = 0,
+            operate_time = NOW(),
+            comment      = '申请已撤回/取消，审批关闭'
+        WHERE business_type = #{businessType}
+          AND business_id   = #{businessId}
+          AND is_pending    = 1
+    </update>
 
 </mapper>

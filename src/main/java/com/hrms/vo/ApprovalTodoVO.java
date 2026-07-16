@@ -26,4 +26,6 @@ public class ApprovalTodoVO {
     private Integer stepOrder;
     /** 步骤名称 */
     private String stepName;
+    /** 审批截止时间 */
+    private LocalDateTime dueTime;
 }

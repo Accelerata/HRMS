@@ -37,6 +37,9 @@ public interface EmployeeMapper {
     /** 根据部门ID查询在职员工列表 */
     List<Employee> selectByDeptId(@Param("deptId") Long deptId);
 
+    /** 查询指定工号前缀下的最大工号（生成工号用），无匹配时返回 null。employee_no 非敏感字段，不涉及解密 */
+    String selectMaxEmployeeNo(@Param("prefix") String prefix);
+
     /** 查询所有员工 */
     List<Employee> selectAll();
 

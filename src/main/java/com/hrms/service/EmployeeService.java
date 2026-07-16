@@ -226,11 +226,21 @@ public class EmployeeService {
             deptPart = String.format("%02d", deptId % 100);
         }
 
-        // 序号：当前该部门员工数 + 1
-        List<Employee> deptEmployees = employeeMapper.selectByDeptId(deptId);
-        int seq = (deptEmployees != null ? deptEmployees.size() : 0) + 1;
+        // 序号：该「年份+部门」前缀下现有最大工号序号 + 1
+        // （用 MAX 而非 COUNT，容忍删号/断号，避免与历史工号冲突；employee_no 非敏感字段无需解密）
+        String prefix = yearPart + deptPart;
+        String maxNo = employeeMapper.selectMaxEmployeeNo(prefix);
+        int seq = 1;
+        if (maxNo != null && maxNo.length() > prefix.length()) {
+            try {
+                seq = Integer.parseInt(maxNo.substring(prefix.length())) + 1;
+            } catch (NumberFormatException e) {
+                log.warn("工号最大序号解析失败，回退为1: maxNo={}", maxNo);
+                seq = 1;
+            }
+        }
 
-        return yearPart + deptPart + String.format("%03d", seq);
+        return prefix + String.format("%03d", seq);
     }
 
     /**

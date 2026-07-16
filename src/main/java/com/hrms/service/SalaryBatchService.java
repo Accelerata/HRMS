@@ -1,8 +1,12 @@
 package com.hrms.service;
 
 import com.hrms.common.constant.SalaryWarningConstants;
+import com.hrms.common.context.BaseContext;
+import com.hrms.common.exception.BaseException;
+import com.hrms.dto.ApprovalActionDTO;
 import com.hrms.dto.SalaryCalcDTO;
 import com.hrms.entity.*;
+import com.hrms.enums.BusinessTypeEnum;
 import com.hrms.mapper.*;
 import com.hrms.vo.SalaryCalcResultVO;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +25,9 @@ import java.util.List;
  * 职责：
  * 1. 汇总考勤数据 → 组装 SalaryCalcDTO
  * 2. 调用 SalaryCalculationService 逐人计算
- * 3. 持久化结果到 salary_record
+ * 3. 持久化结果到 salary_record（挂接薪资批次）
  * 4. 触发预警通知（高亮标记）
+ * 5. 薪资批次提交与审批（财务专员审批 → 批量确认）
  */
 @Slf4j
 @Service
@@ -32,11 +37,19 @@ public class SalaryBatchService {
     private final SalaryCalculationService calculationService;
     private final SalaryAccountMapper salaryAccountMapper;
     private final SalaryRecordMapper salaryRecordMapper;
+    private final SalaryBatchMapper salaryBatchMapper;
     private final EmployeeMapper employeeMapper;
     private final AttendanceRecordMapper attendanceRecordMapper;
     private final LeaveApplicationMapper leaveApplicationMapper;
     private final OvertimeRecordMapper overtimeRecordMapper;
     private final SocialInsuranceConfigMapper siConfigMapper;
+    private final ApprovalStateMachineService stateMachine;
+
+    /** 批次状态 */
+    private static final String BATCH_DRAFT = "DRAFT";
+    private static final String BATCH_PENDING = "PENDING";
+    private static final String BATCH_APPROVED = "APPROVED";
+    private static final String BATCH_REJECTED = "REJECTED";
 
     /**
      * 单个员工薪资核算
@@ -48,6 +61,13 @@ public class SalaryBatchService {
      */
     @Transactional
     public SalaryCalcResultVO calculateForEmployee(Long employeeId, int year, int month) {
+        return doCalculateForEmployee(employeeId, year, month, null);
+    }
+
+    /**
+     * 单个员工薪资核算（可挂接批次）
+     */
+    private SalaryCalcResultVO doCalculateForEmployee(Long employeeId, int year, int month, Long batchId) {
         // 1. 查询员工信息
         Employee employee = employeeMapper.selectById(employeeId);
         if (employee == null) {
@@ -104,30 +124,143 @@ public class SalaryBatchService {
         SalaryCalcResultVO result = calculationService.calculate(input, siConfig);
 
         // 9. 持久化
-        saveRecord(employeeId, year, month, result);
+        saveRecord(employeeId, year, month, result, batchId);
 
         return result;
     }
 
     /**
      * 批量核算（全公司在职员工）
+     * 生成/复用同学年月的薪资批次；批次为 PENDING/APPROVED 时拒绝重复核算
      */
     @Transactional
     public int batchCalculate(int year, int month) {
+        SalaryBatch batch = salaryBatchMapper.selectByYearMonth(year, month);
+        if (batch != null && (BATCH_PENDING.equals(batch.getStatus()) || BATCH_APPROVED.equals(batch.getStatus()))) {
+            throw BaseException.badRequest("该月薪资批次已提交审批或已批准，不可重复核算");
+        }
+        if (batch == null) {
+            batch = new SalaryBatch();
+            batch.setYear(year);
+            batch.setMonth(month);
+            batch.setStatus(BATCH_DRAFT);
+            batch.setEmployeeCount(0);
+            batch.setTotalNetPay(BigDecimal.ZERO);
+            batch.setSubmitterId(BaseContext.getCurrentUserId());
+            salaryBatchMapper.insert(batch);
+        } else {
+            // DRAFT/REJECTED 批次复用：清理旧记录重新核算
+            salaryRecordMapper.deleteByBatch(batch.getId());
+        }
+
         List<SalaryAccount> accounts = salaryAccountMapper.selectAllActive();
         int successCount = 0;
 
         for (SalaryAccount account : accounts) {
             try {
-                calculateForEmployee(account.getEmployeeId(), year, month);
+                doCalculateForEmployee(account.getEmployeeId(), year, month, batch.getId());
                 successCount++;
             } catch (Exception e) {
                 log.error("员工 {} 薪资核算失败: {}", account.getEmployeeId(), e.getMessage());
             }
         }
 
-        log.info("批量薪资核算完成: {}/{} 成功", successCount, accounts.size());
+        // 刷新批次统计（人数 + 实发合计，密文经 TypeHandler 解密后 Java 侧汇总）
+        refreshBatchAggregates(batch.getId());
+
+        log.info("批量薪资核算完成: batchId={}, {}/{} 成功", batch.getId(), successCount, accounts.size());
         return successCount;
+    }
+
+    // ═══════════════ 批次审批 ═══════════════
+
+    /**
+     * 提交批次审批（DRAFT/REJECTED → PENDING）
+     */
+    @Transactional
+    public void submitBatch(Long batchId) {
+        SalaryBatch batch = requireBatch(batchId);
+        if (!BATCH_DRAFT.equals(batch.getStatus()) && !BATCH_REJECTED.equals(batch.getStatus())) {
+            throw BaseException.badRequest("当前状态不可提交审批");
+        }
+        int count = salaryRecordMapper.countByBatch(batchId);
+        if (count == 0) {
+            throw BaseException.badRequest("批次内无薪资记录，请先执行批量核算");
+        }
+
+        Long submitterId = BaseContext.getCurrentUserId();
+        salaryBatchMapper.updateSubmitter(batchId, submitterId);
+        salaryBatchMapper.updateStatus(batchId, BATCH_PENDING);
+
+        stateMachine.startApproval(BusinessTypeEnum.SALARY.getCode(), batchId,
+                ApprovalStateMachineService.ApprovalContext.ofDept(null)
+                        .withSubmitter(submitterId));
+
+        log.info("薪资批次已提交审批: batchId={}, submitter={}", batchId, submitterId);
+    }
+
+    /**
+     * 审批薪资批次（财务专员）
+     */
+    @Transactional
+    public void approveBatch(Long batchId, ApprovalActionDTO dto) {
+        SalaryBatch batch = requireBatch(batchId);
+        if (!BATCH_PENDING.equals(batch.getStatus())) {
+            throw BaseException.badRequest("当前状态不可审批");
+        }
+
+        List<ApprovalRecord> records = stateMachine.getApprovalRecords(BusinessTypeEnum.SALARY.getCode(), batchId);
+        ApprovalRecord myRecord = records.stream()
+                .filter(r -> r.getIsPending() == 1 && r.getApproverId().equals(BaseContext.getCurrentUserId()))
+                .findFirst()
+                .orElseThrow(() -> BaseException.badRequest("您没有待处理的审批"));
+
+        ApprovalStateMachineService.ApprovalResult result = stateMachine.processApproval(
+                myRecord.getId(), dto.getAction(), dto.getComment(), BaseContext.getCurrentUserId());
+
+        if (result.isTerminated()) {
+            // 拒绝：批次 REJECTED，记录回退 DRAFT
+            salaryBatchMapper.updateStatus(batchId, BATCH_REJECTED);
+            salaryRecordMapper.updateStatusByBatch(batchId, "CONFIRMED", "DRAFT");
+            log.info("薪资批次被拒绝: batchId={}", batchId);
+            return;
+        }
+
+        if (result.isApproved()) {
+            // 通过：批次 APPROVED，批次内记录批量 CONFIRMED
+            salaryBatchMapper.updateStatus(batchId, BATCH_APPROVED);
+            int confirmed = salaryRecordMapper.updateStatusByBatch(batchId, "DRAFT", "CONFIRMED");
+            log.info("薪资批次审批通过: batchId={}, 确认{}条记录", batchId, confirmed);
+        }
+    }
+
+    /** 批次列表 */
+    public List<SalaryBatch> listBatches() {
+        return salaryBatchMapper.selectList();
+    }
+
+    /** 批次内薪资记录 */
+    public List<SalaryRecord> batchRecords(Long batchId) {
+        requireBatch(batchId);
+        return salaryRecordMapper.selectByBatch(batchId);
+    }
+
+    private SalaryBatch requireBatch(Long batchId) {
+        SalaryBatch batch = salaryBatchMapper.selectById(batchId);
+        if (batch == null) {
+            throw BaseException.notFound("薪资批次不存在");
+        }
+        return batch;
+    }
+
+    /** 刷新批次统计：人数 + 实发合计（解密后 Java 侧汇总） */
+    private void refreshBatchAggregates(Long batchId) {
+        List<SalaryRecord> records = salaryRecordMapper.selectByBatch(batchId);
+        BigDecimal totalNetPay = records.stream()
+                .map(SalaryRecord::getNetPay)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        salaryBatchMapper.updateAggregates(batchId, records.size(), totalNetPay);
     }
 
     // ═══════════════════════════════════════════════
@@ -202,11 +335,12 @@ public class SalaryBatchService {
     /**
      * 持久化薪资记录
      */
-    private void saveRecord(Long employeeId, int year, int month, SalaryCalcResultVO result) {
+    private void saveRecord(Long employeeId, int year, int month, SalaryCalcResultVO result, Long batchId) {
         SalaryRecord record = new SalaryRecord();
         record.setEmployeeId(employeeId);
         record.setYear(year);
         record.setMonth(month);
+        record.setBatchId(batchId);
         record.setBasicSalary(result.getBasicSalary());
         record.setAttendanceDeduction(result.getAttendanceDeduction());
         record.setLeaveDeduction(result.getLeaveDeduction());

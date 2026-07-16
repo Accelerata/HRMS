@@ -34,4 +34,18 @@ public interface SalaryRecordMapper {
 
     /** 更新状态 */
     int updateStatus(@Param("id") Long id, @Param("status") String status);
+
+    /** 批次内记录批量更新状态（批次审批通过/拒绝时使用） */
+    int updateStatusByBatch(@Param("batchId") Long batchId,
+                            @Param("fromStatus") String fromStatus,
+                            @Param("status") String status);
+
+    /** 删除批次内全部记录（重新核算前清理） */
+    int deleteByBatch(@Param("batchId") Long batchId);
+
+    /** 批次内记录数 */
+    int countByBatch(@Param("batchId") Long batchId);
+
+    /** 查询批次内全部记录 */
+    List<SalaryRecord> selectByBatch(@Param("batchId") Long batchId);
 }

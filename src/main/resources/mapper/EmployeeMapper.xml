@@ -96,6 +96,11 @@
         WHERE dept_id = #{deptId} AND status IN (1, 2, 3)
     </select>
 
+    <select id="selectMaxEmployeeNo" resultType="string">
+        SELECT MAX(employee_no) FROM employee
+        WHERE employee_no LIKE CONCAT(#{prefix}, '%')
+    </select>
+
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/> FROM employee ORDER BY id DESC
     </select>

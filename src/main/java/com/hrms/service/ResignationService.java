@@ -97,7 +97,8 @@ public class ResignationService {
         resignationMapper.insert(entity);
 
         stateMachine.startApproval(BusinessTypeEnum.RESIGNATION.getCode(), entity.getId(),
-                ApprovalStateMachineService.ApprovalContext.ofDept(emp.getDeptId()));
+                ApprovalStateMachineService.ApprovalContext.ofDept(emp.getDeptId())
+                        .withSubmitter(entity.getSubmitterId()));
 
         log.info("离职申请已提交: id={}, employeeId={}", entity.getId(), dto.getEmployeeId());
     }

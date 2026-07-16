@@ -78,7 +78,8 @@ public class RegularizationService {
         regularizationMapper.insert(entity);
 
         stateMachine.startApproval(BusinessTypeEnum.REGULARIZATION.getCode(), entity.getId(),
-                ApprovalStateMachineService.ApprovalContext.ofDept(emp.getDeptId()));
+                ApprovalStateMachineService.ApprovalContext.ofDept(emp.getDeptId())
+                        .withSubmitter(entity.getSubmitterId()));
 
         log.info("转正申请已提交: id={}, employeeId={}", entity.getId(), dto.getEmployeeId());
     }

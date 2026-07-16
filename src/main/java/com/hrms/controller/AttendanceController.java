@@ -16,10 +16,11 @@ import java.util.List;
 /**
  * 考勤管理控制器
  *
- * 权限说明：
- * - attendance:punch - 员工打卡（普通员工及以上）
- * - attendance:record:view - 查看打卡记录（员工本人及管理者）
- * - attendance:group:manage - 考勤组管理（HR专员及以上）
+ * 权限说明（与 RBAC 种子对齐）：
+ * - att:record:punch   - 员工打卡（全角色）
+ * - att:record:view    - 查看打卡记录（员工本人及管理者）
+ * - att:group:view     - 查看考勤组
+ * - att:group:manage   - 考勤组管理（HR专员及以上）
  */
 @RestController
 @RequestMapping("/api/v1/attendance")
@@ -32,21 +33,21 @@ public class AttendanceController {
 
     /** 上班打卡 */
     @PostMapping("/punch-in")
-    @RequirePermission("attendance:punch")
+    @RequirePermission("att:record:punch")
     public Result<AttendanceRecord> punchIn(@Valid @RequestBody AttendancePunchDTO dto) {
         return Result.success(attendanceService.punchIn(dto));
     }
 
     /** 下班打卡 */
     @PostMapping("/punch-out")
-    @RequirePermission("attendance:punch")
+    @RequirePermission("att:record:punch")
     public Result<AttendanceRecord> punchOut(@Valid @RequestBody AttendancePunchDTO dto) {
         return Result.success(attendanceService.punchOut(dto));
     }
 
     /** 查询员工打卡记录 */
     @GetMapping("/records/{employeeId}")
-    @RequirePermission("attendance:record:view")
+    @RequirePermission("att:record:view")
     public Result<List<AttendanceRecord>> records(
             @PathVariable Long employeeId,
             @RequestParam(defaultValue = "1") int page,
@@ -58,14 +59,14 @@ public class AttendanceController {
 
     /** 考勤组列表 */
     @GetMapping("/groups")
-    @RequirePermission("attendance:group:view")
+    @RequirePermission("att:group:view")
     public Result<List<AttendanceGroup>> groupList() {
         return Result.success(attendanceService.listGroups());
     }
 
     /** 创建考勤组 */
     @PostMapping("/groups")
-    @RequirePermission("attendance:group:manage")
+    @RequirePermission("att:group:manage")
     public Result<Void> createGroup(@Valid @RequestBody AttendanceGroupSaveDTO dto) {
         attendanceService.createGroup(dto);
         return Result.success();
@@ -73,7 +74,7 @@ public class AttendanceController {
 
     /** 更新考勤组 */
     @PutMapping("/groups/{id}")
-    @RequirePermission("attendance:group:manage")
+    @RequirePermission("att:group:manage")
     public Result<Void> updateGroup(@PathVariable Long id,
                                      @Valid @RequestBody AttendanceGroupSaveDTO dto) {
         dto.setId(id);
@@ -83,7 +84,7 @@ public class AttendanceController {
 
     /** 删除考勤组 */
     @DeleteMapping("/groups/{id}")
-    @RequirePermission("attendance:group:manage")
+    @RequirePermission("att:group:manage")
     public Result<Void> deleteGroup(@PathVariable Long id) {
         attendanceService.deleteGroup(id);
         return Result.success();

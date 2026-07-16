@@ -39,9 +39,12 @@ public class LeaveApplication {
     /** 请假原因 */
     private String reason;
 
+    /** 工作交接人ID（关联 employee.id，可选） */
+    private Long handoverTo;
+
     /**
      * 审批状态：
-     * 0-草稿 1-审批中 2-已通过 3-已拒绝
+     * 0-草稿 1-审批中 2-已通过 3-已拒绝 4-已取消
      */
     private Integer status;
 

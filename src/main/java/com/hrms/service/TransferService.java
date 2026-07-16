@@ -97,7 +97,8 @@ public class TransferService {
         log.info("调岗薪资调整判断: transferId={}, salaryAdjust={}, hasSalaryAdjust={}",
                 entity.getId(), dto.getSalaryAdjust(), hasSalaryAdjust);
         stateMachine.startApproval(BusinessTypeEnum.TRANSFER.getCode(), entity.getId(),
-                ApprovalStateMachineService.ApprovalContext.ofTransfer(emp.getDeptId(), dto.getToDeptId(), hasSalaryAdjust));
+                ApprovalStateMachineService.ApprovalContext.ofTransfer(emp.getDeptId(), dto.getToDeptId(), hasSalaryAdjust)
+                        .withSubmitter(entity.getSubmitterId()));
 
         log.info("调岗申请已提交: id={}, employeeId={}, from={} to={}",
                 entity.getId(), dto.getEmployeeId(), emp.getDeptId(), dto.getToDeptId());

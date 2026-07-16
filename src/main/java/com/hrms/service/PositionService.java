@@ -68,10 +68,10 @@ public class PositionService {
             throw BaseException.badRequest("试用期必须大于0个月");
         }
 
-//        // 3. 编码唯一性（取消）
-//        if (positionMapper.countByCode(dto.getPositionCode(), null) > 0) {
-//            throw BaseException.badRequest("职位编码[" + dto.getPositionCode() + "]已存在");
-//        }
+        // 3. 编码唯一性
+        if (positionMapper.countByCode(dto.getPositionCode(), null) > 0) {
+            throw BaseException.badRequest("职位编码[" + dto.getPositionCode() + "]已存在");
+        }
 
         // 4. 插入
         Position position = new Position();
@@ -111,10 +111,10 @@ public class PositionService {
             throw BaseException.badRequest("试用期必须大于0个月");
         }
 
-//        // 编码唯一性（取消）
-//        if (positionMapper.countByCode(dto.getPositionCode(), dto.getId()) > 0) {
-//            throw BaseException.badRequest("职位编码[" + dto.getPositionCode() + "]已存在");
-//        }
+        // 编码唯一性
+        if (positionMapper.countByCode(dto.getPositionCode(), dto.getId()) > 0) {
+            throw BaseException.badRequest("职位编码[" + dto.getPositionCode() + "]已存在");
+        }
 
         Position position = new Position();
         position.setId(dto.getId());

@@ -24,6 +24,9 @@ public class SalaryRecord {
     /** 核算月份 (1-12) */
     private Integer month;
 
+    /** 所属薪资批次ID（批量核算时挂接） */
+    private Long batchId;
+
     // ────────────── 应发部分 ──────────────
 
     /** 应发基本工资（已含试用期折算） */

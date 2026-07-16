@@ -13,8 +13,7 @@ import java.time.LocalDate;
 @Data
 public class LeaveApplyDTO {
 
-    /** 员工ID */
-    @NotNull(message = "员工ID不能为空")
+    /** 员工ID（可选，默认取当前登录用户关联员工；提供时须与本人一致） */
     private Long employeeId;
 
     /**
@@ -42,4 +41,7 @@ public class LeaveApplyDTO {
     /** 请假原因 */
     @NotBlank(message = "请假原因不能为空")
     private String reason;
+
+    /** 工作交接人ID（可选） */
+    private Long handoverTo;
 }

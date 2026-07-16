@@ -35,6 +35,7 @@ class ApprovalStateMachineServiceTest {
 
     @Mock private ApprovalTemplateMapper templateMapper;
     @Mock private ApprovalRecordMapper recordMapper;
+    @Mock private ApprovalDelegationMapper delegationMapper;
     @Mock private DepartmentMapper departmentMapper;
     @Mock private EmployeeMapper employeeMapper;
     @Mock private SysUserMapper sysUserMapper;
@@ -295,6 +296,183 @@ class ApprovalStateMachineServiceTest {
 
             verify(notificationService).sendApprovalNotify(
                     eq(200L), contains("审批待办"), anyString(), anyInt(), anyLong());
+        }
+    }
+
+    // ═══════════════ 直接上级解析（审批中心新增） ═══════════════
+
+    @Nested
+    @DisplayName("直接上级审批人解析")
+    class DirectSupervisor {
+
+        @Test
+        @DisplayName("按 report_to 解析")
+        void shouldResolveByReportTo() {
+            ApprovalTemplate tpl = buildTemplate(1L, 6, 1, "direct_supervisor", null);
+            when(templateMapper.selectByBusinessType(6)).thenReturn(List.of(tpl));
+
+            Employee employee = new Employee();
+            employee.setId(500L);
+            employee.setDeptId(1L);
+            employee.setReportTo(100L); // report_to → manager(userId=200)
+            when(employeeMapper.selectById(500L)).thenReturn(employee);
+
+            stateMachine.startApproval(6, 1L,
+                    ApprovalStateMachineService.ApprovalContext.ofEmployee(500L, 1L, 1000L));
+
+            ArgumentCaptor<List<ApprovalRecord>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordMapper).insertBatch(captor.capture());
+            assertEquals(200L, captor.getValue().get(0).getApproverId(),
+                    "direct_supervisor 应解析为 report_to 员工的 userId");
+        }
+
+        @Test
+        @DisplayName("report_to 缺失回退部门负责人")
+        void shouldFallbackToDeptManager() {
+            ApprovalTemplate tpl = buildTemplate(1L, 6, 1, "direct_supervisor", null);
+            when(templateMapper.selectByBusinessType(6)).thenReturn(List.of(tpl));
+
+            Employee employee = new Employee();
+            employee.setId(500L);
+            employee.setDeptId(1L);
+            employee.setReportTo(null); // 无汇报人 → 回退部门负责人 manager(userId=200)
+            when(employeeMapper.selectById(500L)).thenReturn(employee);
+
+            stateMachine.startApproval(6, 1L,
+                    ApprovalStateMachineService.ApprovalContext.ofEmployee(500L, 1L, 1000L));
+
+            ArgumentCaptor<List<ApprovalRecord>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordMapper).insertBatch(captor.capture());
+            assertEquals(200L, captor.getValue().get(0).getApproverId(),
+                    "无汇报人时应回退部门负责人");
+        }
+    }
+
+    // ═══════════════ 委托自动改派（审批中心新增） ═══════════════
+
+    @Nested
+    @DisplayName("委托自动改派")
+    class DelegationHook {
+
+        @Test
+        @DisplayName("生效委托命中时改派被委托人并留存原审批人")
+        void shouldDelegateWhenActive() {
+            ApprovalTemplate tpl = buildTemplate(1L, 6, 1, "dept_manager", null);
+            when(templateMapper.selectByBusinessType(6)).thenReturn(List.of(tpl));
+
+            ApprovalDelegation delegation = new ApprovalDelegation();
+            delegation.setDelegatorId(200L);
+            delegation.setDelegateId(300L);
+            delegation.setDelegateName("hr_specialist");
+            when(delegationMapper.selectActiveByDelegator(eq(200L), any())).thenReturn(delegation);
+
+            stateMachine.startApproval(6, 1L, ApprovalStateMachineService.ApprovalContext.ofDept(1L));
+
+            ArgumentCaptor<List<ApprovalRecord>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordMapper).insertBatch(captor.capture());
+            ApprovalRecord record = captor.getValue().get(0);
+            assertEquals(300L, record.getApproverId(), "审批人应改派被委托人");
+            assertEquals(200L, record.getOriginalApproverId(), "原审批人应留存");
+            assertEquals(2, record.getAssignType(), "assignType 应为 2-委托");
+        }
+
+        @Test
+        @DisplayName("无生效委托时正常分配")
+        void shouldAssignNormallyWithoutDelegation() {
+            ApprovalTemplate tpl = buildTemplate(1L, 6, 1, "dept_manager", null);
+            when(templateMapper.selectByBusinessType(6)).thenReturn(List.of(tpl));
+            when(delegationMapper.selectActiveByDelegator(eq(200L), any())).thenReturn(null);
+
+            stateMachine.startApproval(6, 1L, ApprovalStateMachineService.ApprovalContext.ofDept(1L));
+
+            ArgumentCaptor<List<ApprovalRecord>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordMapper).insertBatch(captor.capture());
+            ApprovalRecord record = captor.getValue().get(0);
+            assertEquals(200L, record.getApproverId());
+            assertEquals(0, record.getAssignType());
+        }
+    }
+
+    // ═══════════════ 代审留痕（审批中心新增） ═══════════════
+
+    @Nested
+    @DisplayName("代审留痕")
+    class AgentComment {
+
+        @Test
+        @DisplayName("委托任务审批附加「XXX 代 YYY 审批」前缀")
+        void shouldPrefixAgentComment() {
+            ApprovalRecord record = new ApprovalRecord();
+            record.setId(50L);
+            record.setBusinessType(6);
+            record.setBusinessId(1L);
+            record.setStepOrder(1);
+            record.setApproverId(300L);
+            record.setApproverName("hr_specialist");
+            record.setOriginalApproverId(200L);
+            record.setOriginalApproverName("manager");
+            record.setAssignType(2);
+            record.setIsPending(1);
+
+            when(recordMapper.selectById(50L)).thenReturn(record);
+            when(recordMapper.countLowerPending(6, 1L, 1)).thenReturn(0);
+            when(recordMapper.selectPendingByBusiness(6, 1L)).thenReturn(List.of());
+
+            stateMachine.processApproval(50L, 1, "同意", 300L);
+
+            verify(recordMapper).updateAction(eq(50L), eq(1), eq("hr_specialist 代 manager 审批：同意"), eq(0));
+        }
+
+        @Test
+        @DisplayName("正常分配任务审批不加前缀")
+        void shouldNotPrefixNormalComment() {
+            ApprovalRecord record = new ApprovalRecord();
+            record.setId(50L);
+            record.setBusinessType(6);
+            record.setBusinessId(1L);
+            record.setStepOrder(1);
+            record.setApproverId(200L);
+            record.setApproverName("manager");
+            record.setAssignType(0);
+            record.setIsPending(1);
+
+            when(recordMapper.selectById(50L)).thenReturn(record);
+            when(recordMapper.countLowerPending(6, 1L, 1)).thenReturn(0);
+            when(recordMapper.selectPendingByBusiness(6, 1L)).thenReturn(List.of());
+
+            stateMachine.processApproval(50L, 1, "同意", 200L);
+
+            verify(recordMapper).updateAction(eq(50L), eq(1), eq("同意"), eq(0));
+        }
+    }
+
+    // ═══════════════ 提交人通知（审批中心新增） ═══════════════
+
+    @Nested
+    @DisplayName("提交人通知")
+    class SubmitterNotify {
+
+        @Test
+        @DisplayName("拒绝通知发给 submitterId 而非审批人")
+        void shouldNotifySubmitterOnReject() {
+            ApprovalRecord record = new ApprovalRecord();
+            record.setId(50L);
+            record.setBusinessType(6);
+            record.setBusinessId(1L);
+            record.setStepOrder(1);
+            record.setApproverId(200L);
+            record.setApproverName("manager");
+            record.setAssignType(0);
+            record.setSubmitterId(1000L);
+            record.setIsPending(1);
+
+            when(recordMapper.selectById(50L)).thenReturn(record);
+            when(recordMapper.countLowerPending(6, 1L, 1)).thenReturn(0);
+
+            stateMachine.processApproval(50L, 2, "不同意", 200L);
+
+            verify(notificationService).sendApprovalNotify(
+                    eq(1000L), contains("拒绝"), anyString(), eq(6), eq(1L));
         }
     }
 

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.SupplementaryCardMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.SupplementaryCardApplication">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="attendance_date" property="attendanceDate"/>
+        <result column="card_type" property="cardType"/>
+        <result column="supplement_time" property="supplementTime"/>
+        <result column="reason" property="reason"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO supplementary_card_application (
+            employee_id, attendance_date, card_type, supplement_time,
+            reason, status, create_time, update_time
+        ) VALUES (
+            #{employeeId}, #{attendanceDate}, #{cardType}, #{supplementTime},
+            #{reason}, #{status}, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM supplementary_card_application WHERE id = #{id}
+    </select>
+
+    <select id="selectByEmployee" resultMap="BaseResultMap">
+        SELECT * FROM supplementary_card_application
+        WHERE employee_id = #{employeeId}
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 防重复：草稿/审批中/已通过均视为有效申请 -->
+    <select id="countActiveByEmployeeDateType" resultType="int">
+        SELECT COUNT(*) FROM supplementary_card_application
+        WHERE employee_id = #{employeeId}
+          AND attendance_date = #{attendanceDate}
+          AND card_type = #{cardType}
+          AND status IN (0, 1, 2)
+    </select>
+
+    <update id="updateStatus">
+        UPDATE supplementary_card_application SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+</mapper>

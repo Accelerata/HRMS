@@ -45,4 +45,16 @@ public interface ApprovalRecordMapper {
 
     /** 查询超时未处理的审批记录（due_time < now 且 is_pending=1） */
     List<ApprovalRecord> selectOverduePending();
+
+    /** 转交/改派：更新审批人并留存原审批人 */
+    int reassign(@Param("id") Long id,
+                 @Param("newApproverId") Long newApproverId,
+                 @Param("newApproverName") String newApproverName,
+                 @Param("originalApproverId") Long originalApproverId,
+                 @Param("originalApproverName") String originalApproverName,
+                 @Param("assignType") Integer assignType);
+
+    /** 关闭某业务所有未处理审批记录（撤回/取消时使用） */
+    int closePendingByBusiness(@Param("businessType") Integer businessType,
+                               @Param("businessId") Long businessId);
 }

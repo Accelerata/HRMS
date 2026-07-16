@@ -315,7 +315,8 @@ public class OnboardingService {
         log.info("入职二审条件判断: onboardingId={}, positionId={}, grade={}, salary={}, needHr={}",
                 entity.getId(), entity.getTargetPositionId(), entity.getGrade(), entity.getOfferSalary(), needHr);
         stateMachine.startApproval(BusinessTypeEnum.ONBOARDING.getCode(), entity.getId(),
-                ApprovalStateMachineService.ApprovalContext.ofDept(entity.getTargetDeptId(), needHr));
+                ApprovalStateMachineService.ApprovalContext.ofDept(entity.getTargetDeptId(), needHr)
+                        .withSubmitter(entity.getSubmitterId()));
     }
 
     /**

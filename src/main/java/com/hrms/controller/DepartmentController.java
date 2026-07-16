@@ -13,6 +13,10 @@ import java.util.List;
 
 /**
  * 部门管理控制器
+ *
+ * 权限说明（与 RBAC 种子对齐）：
+ * - org:dept:view  — 查看部门树（HR/主管及以上）
+ * - org:dept:manage — 部门管理（HR及以上）
  */
 @RestController
 @RequestMapping("/api/v1/dept")
@@ -23,14 +27,14 @@ public class DepartmentController {
 
     /** 获取部门树（含实时人数统计） */
     @GetMapping("/tree")
-    @RequirePermission("dept:view")
+    @RequirePermission("org:dept:view")
     public Result<List<DeptTreeVO>> tree() {
         return Result.success(departmentService.getDeptTree());
     }
 
     /** 创建部门 */
     @PostMapping
-    @RequirePermission("dept:manage")
+    @RequirePermission("org:dept:manage")
     public Result<Void> create(@Valid @RequestBody DepartmentSaveDTO dto) {
         departmentService.create(dto);
         return Result.success();
@@ -38,7 +42,7 @@ public class DepartmentController {
 
     /** 更新部门 */
     @PutMapping("/{id}")
-    @RequirePermission("dept:manage")
+    @RequirePermission("org:dept:manage")
     public Result<Void> update(@PathVariable Long id,
                                @Valid @RequestBody DepartmentSaveDTO dto) {
         dto.setId(id);
@@ -48,7 +52,7 @@ public class DepartmentController {
 
     /** 删除部门 */
     @DeleteMapping("/{id}")
-    @RequirePermission("dept:manage")
+    @RequirePermission("org:dept:manage")
     public Result<Void> delete(@PathVariable Long id) {
         departmentService.delete(id);
         return Result.success();

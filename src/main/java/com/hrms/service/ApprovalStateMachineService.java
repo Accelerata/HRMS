@@ -18,11 +18,11 @@ import java.util.List;
  * 审批状态机引擎 — 核心 Service
  *
  * 职责：
- * 1. 根据审批模板生成审批记录（含逾期时间）
- * 2. 解析审批人（部门主管 / HR专员 / 原部门主管 / 新部门主管）
- * 3. 处理审批动作（通过/拒绝/退回），含顺序门控
+ * 1. 根据审批模板生成审批记录（含逾期时间、提交人、委托自动改派）
+ * 2. 解析审批人（部门主管 / HR专员 / 原部门主管 / 新部门主管 / 财务专员 / 直接上级）
+ * 3. 处理审批动作（通过/拒绝/退回），含顺序门控与代审留痕
  * 4. 判断审批是否全部完成
- * 5. 审批结果通知
+ * 5. 审批结果通知（提交人以 context.submitterUserId 为准）
  */
 @Slf4j
 @Service
@@ -31,6 +31,7 @@ public class ApprovalStateMachineService {
 
     private final ApprovalTemplateMapper templateMapper;
     private final ApprovalRecordMapper recordMapper;
+    private final ApprovalDelegationMapper delegationMapper;
     private final DepartmentMapper departmentMapper;
     private final EmployeeMapper employeeMapper;
     private final SysUserMapper sysUserMapper;
@@ -41,9 +42,9 @@ public class ApprovalStateMachineService {
     /**
      * 启动审批流程——根据业务类型自动生成审批待办记录
      *
-     * @param businessType 业务类型 (1-入职 2-转正 3-调岗 4-离职)
+     * @param businessType 业务类型 (1-入职 2-转正 3-调岗 4-离职 5-薪资批次 6-请假 7-补卡)
      * @param businessId   业务单据ID
-     * @param context      审批上下文（用于解析审批人）
+     * @param context      审批上下文（用于解析审批人、条件步骤、提交人）
      */
     @Transactional
     public void startApproval(int businessType, long businessId, ApprovalContext context) {
@@ -55,28 +56,22 @@ public class ApprovalStateMachineService {
 
         List<ApprovalRecord> records = new ArrayList<>();
         for (ApprovalTemplate tpl : templates) {
-            // 条件步骤过滤：needHr 为 false 时跳过 condition_expr='needHr' 的 HR 审批步骤
-            if (!context.isNeedHr() && "needHr".equals(tpl.getConditionExpr())) {
-                log.info("跳过条件审批步骤: templateId={}, stepName={}, conditionExpr={}, needHr={}",
-                        tpl.getId(), tpl.getStepName(), tpl.getConditionExpr(), context.isNeedHr());
-                continue;
-            }
-
-            // 条件步骤过滤：hasSalaryAdjust 为 false 时跳过 condition_expr='hasSalaryAdjust' 的薪资审批步骤
-            if (!context.isHasSalaryAdjust() && "hasSalaryAdjust".equals(tpl.getConditionExpr())) {
-                log.info("跳过条件审批步骤: templateId={}, stepName={}, conditionExpr={}, hasSalaryAdjust={}",
-                        tpl.getId(), tpl.getStepName(), tpl.getConditionExpr(), context.isHasSalaryAdjust());
+            if (skipByCondition(tpl, context)) {
                 continue;
             }
 
             Long approverId = resolveApprover(tpl.getApproverTarget(), context);
-            String approverName = resolveApproverName(tpl.getApproverTarget(), context, approverId);
-
             if (approverId == null) {
-                log.warn("无法解析审批人: target={}, businessType={}, businessId={}",
+                // 兜底：解析失败时改派 HR 专员，避免审批步骤静默丢失
+                log.warn("审批人解析失败，回退HR专员: target={}, businessType={}, businessId={}",
                         tpl.getApproverTarget(), businessType, businessId);
-                continue;
+                approverId = resolveHrSpecialist();
+                if (approverId == null) {
+                    log.error("HR专员亦无法解析，跳过该步骤: businessType={}, businessId={}", businessType, businessId);
+                    continue;
+                }
             }
+            String approverName = resolveApproverName(approverId);
 
             ApprovalRecord record = new ApprovalRecord();
             record.setBusinessType(businessType);
@@ -84,6 +79,12 @@ public class ApprovalStateMachineService {
             record.setStepOrder(tpl.getStepOrder());
             record.setApproverId(approverId);
             record.setApproverName(approverName);
+            record.setAssignType(0);
+            record.setSubmitterId(context.getSubmitterUserId());
+
+            // 委托自动改派：审批人存在生效中委托时改派被委托人
+            applyDelegationIfActive(record);
+
             record.setIsPending(1);
             // 计算每级 48h 截止时间
             record.setDueTime(LocalDateTime.now().plusHours(DUE_HOURS));
@@ -98,10 +99,56 @@ public class ApprovalStateMachineService {
             // 发送待办通知
             for (ApprovalRecord r : records) {
                 String title = "审批待办: " + BusinessTypeEnum.fromCode(businessType).getLabel();
-                notificationService.sendApprovalNotify(r.getApproverId(), title,
-                        "您有一项新的审批任务待处理，请登录审批工作台查看。",
+                String content = r.getAssignType() != null && r.getAssignType() == 2
+                        ? "您有一项受 " + r.getOriginalApproverName() + " 委托的审批任务待处理，请登录审批工作台查看。"
+                        : "您有一项新的审批任务待处理，请登录审批工作台查看。";
+                notificationService.sendApprovalNotify(r.getApproverId(), title, content,
                         businessType, businessId);
             }
+        }
+    }
+
+    /**
+     * 条件步骤过滤：命中条件且上下文不满足时跳过
+     */
+    private boolean skipByCondition(ApprovalTemplate tpl, ApprovalContext context) {
+        String condition = tpl.getConditionExpr();
+        if (condition == null) {
+            return false;
+        }
+        boolean skip = switch (condition) {
+            case "needHr" -> !context.isNeedHr();
+            case "hasSalaryAdjust" -> !context.isHasSalaryAdjust();
+            case "leaveNeedDeptManager" -> !context.isLeaveNeedDeptManager();
+            default -> false;
+        };
+        if (skip) {
+            log.info("跳过条件审批步骤: templateId={}, stepName={}, conditionExpr={}",
+                    tpl.getId(), tpl.getStepName(), condition);
+        }
+        return skip;
+    }
+
+    /**
+     * 委托自动改派：审批人存在生效中的委托时，改派被委托人并留存原审批人（assignType=2）
+     */
+    private void applyDelegationIfActive(ApprovalRecord record) {
+        try {
+            ApprovalDelegation delegation = delegationMapper.selectActiveByDelegator(
+                    record.getApproverId(), LocalDateTime.now());
+            if (delegation == null) {
+                return;
+            }
+            record.setOriginalApproverId(record.getApproverId());
+            record.setOriginalApproverName(record.getApproverName());
+            record.setApproverId(delegation.getDelegateId());
+            record.setApproverName(delegation.getDelegateName());
+            record.setAssignType(2);
+            log.info("审批任务委托改派: 原审批人={}({}), 被委托人={}({})",
+                    record.getOriginalApproverName(), record.getOriginalApproverId(),
+                    delegation.getDelegateName(), delegation.getDelegateId());
+        } catch (Exception e) {
+            log.warn("委托改派检查失败，按原审批人分配: {}", e.getMessage());
         }
     }
 
@@ -135,26 +182,29 @@ public class ApprovalStateMachineService {
             throw BaseException.badRequest("请先完成前置审批步骤");
         }
 
-        // 3. 更新审批记录
-        recordMapper.updateAction(recordId, action, comment, 0);
+        // 3. 代审留痕：转交/委托任务审批时附加「XXX 代 YYY 审批」前缀
+        String finalComment = buildAgentComment(record, comment);
+
+        // 4. 更新审批记录
+        recordMapper.updateAction(recordId, action, finalComment, 0);
 
         log.info("审批完成: recordId={}, action={}, approverId={}", recordId, action, currentUserId);
 
-        // 4. 判断后续流程
+        // 5. 判断后续流程
         ApprovalResult result = new ApprovalResult();
         result.setBusinessType(record.getBusinessType());
         result.setBusinessId(record.getBusinessId());
         result.setAction(action);
         result.setStepOrder(record.getStepOrder());
 
-        // 5. 发送通知（通过时通知下一级审批人，拒绝/退回时通知提交人）
+        // 6. 发送通知（通过时通知下一级审批人，拒绝/退回时通知提交人）
         if (action == ApprovalActionEnum.REJECT.getCode()
                 || action == ApprovalActionEnum.RETURN.getCode()) {
             result.setTerminated(true);
             result.setApproved(false);
-            notifySubmitter(record.getBusinessType(), record.getBusinessId(),
-                    "审批被拒绝/退回", "您的申请已被审批人处理，结果："
-                            + ApprovalActionEnum.fromCode(action).getLabel());
+            notifySubmitter(record, "审批被拒绝/退回", "您的申请已被审批人处理，结果："
+                    + ApprovalActionEnum.fromCode(action).getLabel()
+                    + (finalComment != null && !finalComment.isBlank() ? "，意见：" + finalComment : ""));
             return result;
         }
 
@@ -166,8 +216,7 @@ public class ApprovalStateMachineService {
             result.setTerminated(false);
             result.setApproved(true);
             // 通知提交人审批全部通过
-            notifySubmitter(record.getBusinessType(), record.getBusinessId(),
-                    "审批全部通过", "您的申请已全部审批通过。");
+            notifySubmitter(record, "审批全部通过", "您的申请已全部审批通过。");
         } else {
             result.setTerminated(false);
             result.setApproved(false);
@@ -184,6 +233,20 @@ public class ApprovalStateMachineService {
     }
 
     /**
+     * 代审留痕：assignType != 0（1-转交 2-委托）时，附加「XXX 代 YYY 审批」前缀
+     */
+    private String buildAgentComment(ApprovalRecord record, String comment) {
+        if (record.getAssignType() == null || record.getAssignType() == 0) {
+            return comment;
+        }
+        String operator = record.getApproverName() != null ? record.getApproverName() : "用户" + record.getApproverId();
+        String original = record.getOriginalApproverName() != null
+                ? record.getOriginalApproverName() : "用户" + record.getOriginalApproverId();
+        String prefix = operator + " 代 " + original + " 审批";
+        return (comment == null || comment.isBlank()) ? prefix : prefix + "：" + comment;
+    }
+
+    /**
      * 查询某业务的所有审批记录
      */
     public List<ApprovalRecord> getApprovalRecords(int businessType, long businessId) {
@@ -191,17 +254,28 @@ public class ApprovalStateMachineService {
     }
 
     /**
-     * 通知提交人
+     * 通知提交人（以审批记录上的 submitterId 为准，缺失时回退旧逻辑）
      */
-    private void notifySubmitter(int businessType, long businessId, String title, String content) {
+    private void notifySubmitter(ApprovalRecord record, String title, String content) {
         try {
-            // 通过业务类型找到提交人并通知
-            // 简化：通知同一业务的所有相关审批人
-            List<ApprovalRecord> allRecords = recordMapper.selectByBusiness(businessType, businessId);
-            if (!allRecords.isEmpty()) {
-                Long firstApprover = allRecords.get(0).getApproverId();
-                notificationService.sendApprovalNotify(firstApprover, title, content, businessType, businessId);
+            Long submitterId = record.getSubmitterId();
+            if (submitterId == null) {
+                // 兼容历史数据：回退到同业务第一条审批记录
+                List<ApprovalRecord> allRecords = recordMapper.selectByBusiness(
+                        record.getBusinessType(), record.getBusinessId());
+                submitterId = allRecords.stream()
+                        .map(ApprovalRecord::getSubmitterId)
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
             }
+            if (submitterId == null) {
+                log.warn("提交人未知，通知跳过: businessType={}, businessId={}",
+                        record.getBusinessType(), record.getBusinessId());
+                return;
+            }
+            notificationService.sendApprovalNotify(submitterId, title, content,
+                    record.getBusinessType(), record.getBusinessId());
         } catch (Exception e) {
             log.warn("通知发送失败: {}", e.getMessage());
         }
@@ -221,16 +295,46 @@ public class ApprovalStateMachineService {
                 return resolveDeptManager(context.getNewDeptId());
             case "finance_specialist":
                 return resolveFinanceSpecialist();
+            case "direct_supervisor":
+                return resolveDirectSupervisor(context);
             default:
                 log.warn("未知的审批人指向: {}", approverTarget);
                 return null;
         }
     }
 
-    private String resolveApproverName(String approverTarget, ApprovalContext context, Long approverId) {
+    private String resolveApproverName(Long approverId) {
         if (approverId == null) return null;
         SysUser user = sysUserMapper.findById(approverId);
         return user != null ? user.getUsername() : ("用户" + approverId);
+    }
+
+    /**
+     * 直接上级解析链：employee.report_to → 部门负责人 → 返回 null（由调用方兜底HR）
+     */
+    private Long resolveDirectSupervisor(ApprovalContext context) {
+        Long employeeId = context.getEmployeeId();
+        if (employeeId != null) {
+            Employee employee = employeeMapper.selectById(employeeId);
+            if (employee != null && employee.getReportTo() != null) {
+                Employee supervisor = employeeMapper.selectById(employee.getReportTo());
+                if (supervisor != null && supervisor.getUserId() != null) {
+                    return supervisor.getUserId();
+                }
+                log.warn("直接上级无关联系统账号: employeeId={}, reportTo={}", employeeId, employee.getReportTo());
+            }
+        }
+        // 回退部门负责人
+        Long deptId = context.getDeptId();
+        if (deptId == null && employeeId != null) {
+            Employee employee = employeeMapper.selectById(employeeId);
+            deptId = employee != null ? employee.getDeptId() : null;
+        }
+        Long deptManager = resolveDeptManager(deptId);
+        if (deptManager != null) {
+            log.info("直接上级缺失，回退部门负责人: employeeId={}, deptId={}", employeeId, deptId);
+        }
+        return deptManager;
     }
 
     private Long resolveDeptManager(Long deptId) {
@@ -273,10 +377,16 @@ public class ApprovalStateMachineService {
         private Long deptId;
         private Long oldDeptId;
         private Long newDeptId;
+        /** 业务员工ID（请假/补卡申请人，用于直接上级解析） */
+        private Long employeeId;
+        /** 提交人用户ID（sys_user.id，审批结果通知对象） */
+        private Long submitterUserId;
         /** 是否需要 HR 审批（默认 true，兼容现有多级审批流程） */
         private boolean needHr = true;
         /** 是否有薪资调整（默认 false，调岗薪资调整时触发财务审批） */
         private boolean hasSalaryAdjust = false;
+        /** 请假是否需要部门负责人二审（年假/调休>3天、事假/病假>1天） */
+        private boolean leaveNeedDeptManager = false;
 
         public static ApprovalContext ofDept(Long deptId) {
             ApprovalContext ctx = new ApprovalContext();
@@ -304,6 +414,28 @@ public class ApprovalStateMachineService {
             ctx.newDeptId = newDeptId;
             ctx.hasSalaryAdjust = hasSalaryAdjust;
             return ctx;
+        }
+
+        /** 请假/补卡：按员工构建（直接上级解析 + 提交人通知） */
+        public static ApprovalContext ofEmployee(Long employeeId, Long deptId, Long submitterUserId) {
+            ApprovalContext ctx = new ApprovalContext();
+            ctx.employeeId = employeeId;
+            ctx.deptId = deptId;
+            ctx.submitterUserId = submitterUserId;
+            return ctx;
+        }
+
+        /** 请假：附加部门负责人二审条件 */
+        public static ApprovalContext ofLeave(Long employeeId, Long deptId, Long submitterUserId,
+                                              boolean leaveNeedDeptManager) {
+            ApprovalContext ctx = ofEmployee(employeeId, deptId, submitterUserId);
+            ctx.leaveNeedDeptManager = leaveNeedDeptManager;
+            return ctx;
+        }
+
+        public ApprovalContext withSubmitter(Long submitterUserId) {
+            this.submitterUserId = submitterUserId;
+            return this;
         }
     }
 

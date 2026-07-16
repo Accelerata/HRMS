@@ -14,6 +14,7 @@
         <result column="employee_id" property="employeeId"/>
         <result column="year" property="year"/>
         <result column="month" property="month"/>
+        <result column="batch_id" property="batchId"/>
         <result column="basic_salary" property="basicSalary"
                 typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="attendance_deduction" property="attendanceDeduction"
@@ -50,7 +51,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, employee_id, year, month,
+        id, employee_id, year, month, batch_id,
         <include refid="MoneyEncrypted"/>,
         probation_ratio,
         leave_days, overtime_hours, late_count, early_count, absent_count,
@@ -60,7 +61,7 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_record (
-            employee_id, year, month,
+            employee_id, year, month, batch_id,
             basic_salary, attendance_deduction, leave_deduction,
             overtime_pay, gross_pay,
             social_insurance_personal, housing_fund_personal,
@@ -70,7 +71,7 @@
             warnings, status, encryption_version,
             create_time, update_time
         ) VALUES (
-            #{employeeId}, #{year}, #{month},
+            #{employeeId}, #{year}, #{month}, #{batchId},
             #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{attendanceDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{leaveDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
@@ -91,7 +92,7 @@
 
     <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_record (
-            employee_id, year, month,
+            employee_id, year, month, batch_id,
             basic_salary, attendance_deduction, leave_deduction,
             overtime_pay, gross_pay,
             social_insurance_personal, housing_fund_personal,
@@ -103,7 +104,7 @@
         ) VALUES
         <foreach collection="list" item="item" separator=",">
         (
-            #{item.employeeId}, #{item.year}, #{item.month},
+            #{item.employeeId}, #{item.year}, #{item.month}, #{item.batchId},
             #{item.basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{item.attendanceDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{item.leaveDeduction, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
@@ -151,5 +152,29 @@
     <update id="updateStatus">
         UPDATE salary_record SET status = #{status}, update_time = NOW() WHERE id = #{id}
     </update>
+
+    <!-- 批次审批通过：批次内记录批量确认 -->
+    <update id="updateStatusByBatch">
+        UPDATE salary_record SET status = #{status}, update_time = NOW()
+        WHERE batch_id = #{batchId} AND status = #{fromStatus}
+    </update>
+
+    <!-- 重新核算前清理批次内记录 -->
+    <delete id="deleteByBatch">
+        DELETE FROM salary_record WHERE batch_id = #{batchId}
+    </delete>
+
+    <!-- 批次内记录数 -->
+    <select id="countByBatch" resultType="int">
+        SELECT COUNT(*) FROM salary_record WHERE batch_id = #{batchId}
+    </select>
+
+    <!-- 批次内全部记录（密文经 TypeHandler 解密，用于 Java 侧汇总） -->
+    <select id="selectByBatch" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM salary_record
+        WHERE batch_id = #{batchId}
+        ORDER BY employee_id ASC
+    </select>
 
 </mapper>

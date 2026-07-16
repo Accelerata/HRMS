@@ -12,7 +12,9 @@ public enum BusinessTypeEnum {
     REGULARIZATION(2, "转正"),
     TRANSFER(3, "调岗"),
     RESIGNATION(4, "离职"),
-    SALARY(5, "薪资");
+    SALARY(5, "薪资批次"),
+    LEAVE(6, "请假"),
+    CARD(7, "补卡");
 
     private final int code;
     private final String label;

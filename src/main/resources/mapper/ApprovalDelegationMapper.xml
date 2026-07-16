@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.ApprovalDelegationMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.ApprovalDelegation">
+        <id column="id" property="id"/>
+        <result column="delegator_id" property="delegatorId"/>
+        <result column="delegator_name" property="delegatorName"/>
+        <result column="delegate_id" property="delegateId"/>
+        <result column="delegate_name" property="delegateName"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO approval_delegation (
+            delegator_id, delegator_name, delegate_id, delegate_name,
+            start_time, end_time, status, create_time, update_time
+        ) VALUES (
+            #{delegatorId}, #{delegatorName}, #{delegateId}, #{delegateName},
+            #{startTime}, #{endTime}, 1, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM approval_delegation WHERE id = #{id}
+    </select>
+
+    <select id="selectByDelegator" resultMap="BaseResultMap">
+        SELECT * FROM approval_delegation
+        WHERE delegator_id = #{delegatorId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectActiveByDelegator" resultMap="BaseResultMap">
+        SELECT * FROM approval_delegation
+        WHERE delegator_id = #{delegatorId}
+          AND status = 1
+          AND start_time &lt;= #{now}
+          AND end_time &gt;= #{now}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <select id="countOverlapping" resultType="int">
+        SELECT COUNT(*) FROM approval_delegation
+        WHERE delegator_id = #{delegatorId}
+          AND status = 1
+          AND start_time &lt; #{endTime}
+          AND end_time &gt; #{startTime}
+    </select>
+
+    <update id="cancel">
+        UPDATE approval_delegation SET status = 0, update_time = NOW() WHERE id = #{id}
+    </update>
+
+</mapper>
