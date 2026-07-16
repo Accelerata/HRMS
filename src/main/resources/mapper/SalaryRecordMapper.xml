@@ -124,6 +124,10 @@
         </foreach>
     </insert>
 
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM salary_record WHERE id = #{id}
+    </select>
+
     <select id="selectByEmployeeAndMonth" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM salary_record

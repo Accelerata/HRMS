@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="com.hrms.entity.SalaryAccount">
         <id column="id" property="id"/>
         <result column="employee_id" property="employeeId"/>
+        <result column="plan_id" property="planId"/>
         <result column="basic_salary" property="basicSalary"
                 typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="position_salary" property="positionSalary"
@@ -18,18 +19,28 @@
                 typeHandler="com.hrms.crypto.EncryptedBigDecimalTypeHandler"/>
         <result column="status" property="status"/>
         <result column="effective_date" property="effectiveDate"/>
+        <result column="effective_start_date" property="effectiveStartDate"/>
+        <result column="effective_end_date" property="effectiveEndDate"/>
+        <result column="change_reason" property="changeReason"/>
+        <result column="operator_id" property="operatorId"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="encryption_version" property="encryptionVersion"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, employee_id,
+        id, employee_id, plan_id,
         basic_salary, position_salary, performance_salary,
         probation_ratio,
         social_insurance_base, housing_fund_base,
-        status, effective_date, create_time, update_time, encryption_version
+        status, effective_date, effective_start_date, effective_end_date,
+        change_reason, operator_id,
+        create_time, update_time, encryption_version
     </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM salary_account WHERE id = #{id}
+    </select>
 
     <select id="selectByEmployeeId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
@@ -39,11 +50,13 @@
     </select>
 
     <select id="selectAllActive" resultMap="BaseResultMap">
-        SELECT sa.id, sa.employee_id,
+        SELECT sa.id, sa.employee_id, sa.plan_id,
                sa.basic_salary, sa.position_salary, sa.performance_salary,
                sa.probation_ratio,
                sa.social_insurance_base, sa.housing_fund_base,
-               sa.status, sa.effective_date, sa.create_time, sa.update_time, sa.encryption_version
+               sa.status, sa.effective_date, sa.effective_start_date, sa.effective_end_date,
+               sa.change_reason, sa.operator_id,
+               sa.create_time, sa.update_time, sa.encryption_version
         FROM salary_account sa
         INNER JOIN employee e ON sa.employee_id = e.id
         WHERE sa.status = 1 AND e.status IN (1, 2)
@@ -51,33 +64,42 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_account (
-            employee_id,
+            employee_id, plan_id,
             basic_salary, position_salary, performance_salary,
             probation_ratio,
             social_insurance_base, housing_fund_base,
-            status, effective_date, encryption_version,
+            status, effective_date, effective_start_date, effective_end_date,
+            change_reason, operator_id,
+            encryption_version,
             create_time, update_time
         ) VALUES (
-            #{employeeId},
+            #{employeeId}, #{planId},
             #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{positionSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{performanceSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{probationRatio},
             #{socialInsuranceBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{housingFundBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
-            #{status}, #{effectiveDate}, 1,
+            #{status}, #{effectiveDate}, #{effectiveStartDate}, #{effectiveEndDate},
+            #{changeReason}, #{operatorId},
+            1,
             NOW(), NOW()
         )
     </insert>
 
     <update id="update">
         UPDATE salary_account
-        SET basic_salary = #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+        SET plan_id = #{planId},
+            basic_salary = #{basicSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             position_salary = #{positionSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             performance_salary = #{performanceSalary, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             probation_ratio = #{probationRatio},
             social_insurance_base = #{socialInsuranceBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             housing_fund_base = #{housingFundBase, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
+            effective_start_date = #{effectiveStartDate},
+            effective_end_date = #{effectiveEndDate},
+            change_reason = #{changeReason},
+            operator_id = #{operatorId},
             update_time = NOW()
         WHERE id = #{id}
     </update>

@@ -12,6 +12,9 @@ import java.util.List;
 @Mapper
 public interface SalaryAccountMapper {
 
+    /** 根据ID查询 */
+    SalaryAccount selectById(@Param("id") Long id);
+
     /** 根据员工ID查询生效中的薪资账套 */
     SalaryAccount selectByEmployeeId(@Param("employeeId") Long employeeId);
 

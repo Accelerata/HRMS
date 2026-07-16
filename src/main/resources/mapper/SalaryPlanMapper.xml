@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.SalaryPlanMapper">
+
+    <resultMap id="PlanResultMap" type="com.hrms.entity.SalaryPlan">
+        <id column="id" property="id"/>
+        <result column="plan_name" property="planName"/>
+        <result column="description" property="description"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="PlanItemResultMap" type="com.hrms.entity.SalaryPlanItem">
+        <id column="id" property="id"/>
+        <result column="plan_id" property="planId"/>
+        <result column="item_name" property="itemName"/>
+        <result column="item_code" property="itemCode"/>
+        <result column="item_type" property="itemType"/>
+        <result column="category" property="category"/>
+        <result column="calc_rule" property="calcRule"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="is_enabled" property="isEnabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="PlanScopeResultMap" type="com.hrms.entity.SalaryPlanScope">
+        <id column="id" property="id"/>
+        <result column="plan_id" property="planId"/>
+        <result column="scope_type" property="scopeType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="target_value" property="targetValue"/>
+        <result column="priority" property="priority"/>
+        <result column="effective_date" property="effectiveDate"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="PlanResultMap">
+        SELECT * FROM salary_plan WHERE id = #{id}
+    </select>
+
+    <select id="selectAll" resultMap="PlanResultMap">
+        SELECT * FROM salary_plan ORDER BY create_time DESC
+    </select>
+
+    <select id="selectEnabled" resultMap="PlanResultMap">
+        SELECT * FROM salary_plan WHERE status = 1 ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_plan (plan_name, description, status, create_time, update_time)
+        VALUES (#{planName}, #{description}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE salary_plan SET plan_name = #{planName}, description = #{description}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE salary_plan SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- plan items -->
+    <select id="selectItemsByPlanId" resultMap="PlanItemResultMap">
+        SELECT * FROM salary_plan_item WHERE plan_id = #{planId} ORDER BY sort_order ASC
+    </select>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_plan_item (plan_id, item_name, item_code, item_type, category, calc_rule, sort_order, is_enabled, create_time, update_time)
+        VALUES (#{planId}, #{itemName}, #{itemCode}, #{itemType}, #{category}, #{calcRule}, #{sortOrder}, #{isEnabled}, NOW(), NOW())
+    </insert>
+
+    <update id="updateItem">
+        UPDATE salary_plan_item SET item_name=#{itemName}, item_code=#{itemCode}, item_type=#{itemType},
+            category=#{category}, calc_rule=#{calcRule}, sort_order=#{sortOrder}, is_enabled=#{isEnabled}, update_time=NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteItem">
+        DELETE FROM salary_plan_item WHERE id = #{id}
+    </delete>
+
+    <!-- plan scope -->
+    <select id="selectScopesByPlanId" resultMap="PlanScopeResultMap">
+        SELECT * FROM salary_plan_scope WHERE plan_id = #{planId}
+    </select>
+
+    <insert id="insertScope" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_plan_scope (plan_id, scope_type, target_id, target_value, priority, effective_date, create_time)
+        VALUES (#{planId}, #{scopeType}, #{targetId}, #{targetValue}, #{priority}, #{effectiveDate}, NOW())
+    </insert>
+
+    <delete id="deleteScope">
+        DELETE FROM salary_plan_scope WHERE id = #{id}
+    </delete>
+
+    <!-- 按优先级匹配账套：员工指定 > 职位 > 职级 > 部门 > 默认 -->
+    <select id="matchPlan" resultMap="PlanResultMap">
+        SELECT sp.* FROM salary_plan sp
+        JOIN salary_plan_scope sps ON sp.id = sps.plan_id
+        WHERE sp.status = 1 AND sps.effective_date &lt;= CURDATE()
+        ORDER BY sps.priority DESC
+        LIMIT 1
+    </select>
+
+</mapper>

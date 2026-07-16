@@ -10,6 +10,9 @@
         <result column="employee_count" property="employeeCount"/>
         <result column="total_net_pay" property="totalNetPay"/>
         <result column="submitter_id" property="submitterId"/>
+        <result column="attendance_locked" property="attendanceLocked"/>
+        <result column="lock_time" property="lockTime"/>
+        <result column="blocking_reason" property="blockingReason"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -17,10 +20,12 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO salary_batch (
             year, month, status, employee_count, total_net_pay,
-            submitter_id, create_time, update_time
+            submitter_id, attendance_locked, lock_time, blocking_reason,
+            create_time, update_time
         ) VALUES (
             #{year}, #{month}, #{status}, #{employeeCount}, #{totalNetPay},
-            #{submitterId}, NOW(), NOW()
+            #{submitterId}, #{attendanceLocked}, #{lockTime}, #{blockingReason},
+            NOW(), NOW()
         )
     </insert>
 

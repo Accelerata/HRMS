@@ -1,29 +1,23 @@
 package com.hrms.controller;
 
 import com.hrms.annotation.RequirePermission;
+import com.hrms.common.context.BaseContext;
 import com.hrms.dto.ApprovalActionDTO;
 import com.hrms.dto.SalaryBatchCalcDTO;
 import com.hrms.entity.SalaryBatch;
 import com.hrms.entity.SalaryRecord;
+import com.hrms.mapper.SalaryBatchMapper;
 import com.hrms.mapper.SalaryRecordMapper;
 import com.hrms.result.Result;
-import com.hrms.service.SalaryBatchService;
+import com.hrms.service.*;
 import com.hrms.vo.SalaryCalcResultVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
-/**
- * 薪资管理控制器
- *
- * 权限说明（与 RBAC 种子 salary:calc:* 对齐）：
- * - salary:calc:calc    — 薪资核算、批次提交（HR专员及以上）
- * - salary:calc:view    — 查看薪资记录/批次（HR专员、部门主管[本部门]、财务专员、员工本人）
- * - salary:calc:approve — 批次审批（财务专员）、单条确认/发放（HR专员及以上）
- * - salary:detail       — 查看工资条详情（需二次验证）
- */
 @RestController
 @RequestMapping("/api/v1/salary")
 @RequiredArgsConstructor
@@ -31,59 +25,48 @@ public class SalaryController {
 
     private final SalaryBatchService salaryBatchService;
     private final SalaryRecordMapper salaryRecordMapper;
+    private final SalaryBatchMapper salaryBatchMapper;
+    private final PayslipService payslipService;
+    private final SalaryAccessControlService accessControlService;
+    private final SalaryReportService salaryReportService;
 
     // ═══════════════ 薪资核算 ═══════════════
 
-    /**
-     * 单个员工薪资核算
-     * 重新核算后，覆盖该员工该月的原有薪资记录
-     */
     @PostMapping("/calculate/{employeeId}")
-    @RequirePermission("salary:calc:calc")
-    public Result<SalaryCalcResultVO> calculate(
-            @PathVariable Long employeeId,
-            @RequestParam int year,
-            @RequestParam int month) {
-        SalaryCalcResultVO result = salaryBatchService.calculateForEmployee(employeeId, year, month);
-        return Result.success(result);
+    @RequirePermission("salary:batch:calc")
+    public Result<SalaryCalcResultVO> calculate(@PathVariable Long employeeId,
+                                                 @RequestParam int year,
+                                                 @RequestParam int month) {
+        return Result.success(salaryBatchService.calculateForEmployee(employeeId, year, month));
     }
 
-    /**
-     * 批量薪资核算
-     * 传入 year + month，自动核算全公司（或指定部门）在职员工，生成薪资批次
-     */
     @PostMapping("/batch-calculate")
-    @RequirePermission("salary:calc:calc")
+    @RequirePermission("salary:batch:calc")
     public Result<Integer> batchCalculate(@Valid @RequestBody SalaryBatchCalcDTO dto) {
-        int count = salaryBatchService.batchCalculate(dto.getYear(), dto.getMonth());
-        return Result.success(count);
+        return Result.success(salaryBatchService.batchCalculate(dto.getYear(), dto.getMonth()));
     }
 
-    // ═══════════════ 薪资批次审批 ═══════════════
+    // ═══════════════ 薪资批次 ═══════════════
 
-    /** 批次列表（含全公司实发合计，仅 HR/财务可见） */
     @GetMapping("/batches")
     @RequirePermission("salary:batch:view")
     public Result<List<SalaryBatch>> batches() {
         return Result.success(salaryBatchService.listBatches());
     }
 
-    /** 批次内薪资记录（仅 HR/财务可见） */
     @GetMapping("/batches/{id}/records")
     @RequirePermission("salary:batch:view")
     public Result<List<SalaryRecord>> batchRecords(@PathVariable Long id) {
         return Result.success(salaryBatchService.batchRecords(id));
     }
 
-    /** 提交批次审批（HR） */
     @PostMapping("/batches/{id}/submit")
-    @RequirePermission("salary:calc:calc")
+    @RequirePermission("salary:batch:submit")
     public Result<Void> submitBatch(@PathVariable Long id) {
         salaryBatchService.submitBatch(id);
         return Result.success();
     }
 
-    /** 审批薪资批次（财务专员） */
     @PostMapping("/batches/{id}/approve")
     @RequirePermission("salary:calc:approve")
     public Result<Void> approveBatch(@PathVariable Long id, @RequestBody ApprovalActionDTO dto) {
@@ -91,75 +74,92 @@ public class SalaryController {
         return Result.success();
     }
 
-    // ═══════════════ 薪资记录查询 ═══════════════
-
-    /**
-     * 查询薪资记录列表
-     * - HR专员/财务专员：全公司
-     * - 部门主管：本部门
-     * - 普通员工：仅本人
-     */
-    @GetMapping("/records")
-    @RequirePermission({"salary:calc:view", "salary:calc:calc"})
-    public Result<List<SalaryRecord>> listRecords(
-            @RequestParam(required = false) Long employeeId,
-            @RequestParam int year,
-            @RequestParam int month) {
-        List<SalaryRecord> records;
-        if (employeeId != null) {
-            SalaryRecord record = salaryRecordMapper.selectByEmployeeAndMonth(employeeId, year, month);
-            records = record != null ? List.of(record) : List.of();
-        } else {
-            // TODO: 根据当前登录用户权限范围，查询对应部门或全公司的记录
-            records = List.of();
+    /** 批次发放确认（仅 APPROVED → PAID） */
+    @PostMapping("/batches/{id}/pay")
+    @RequirePermission("salary:batch:pay")
+    public Result<Void> payBatch(@PathVariable Long id) {
+        SalaryBatch batch = salaryBatchMapper.selectById(id);
+        if (batch == null || !"APPROVED".equals(batch.getStatus())) {
+            return Result.error("仅已通过批次可发放");
         }
-        return Result.success(records);
+        salaryBatchMapper.updateStatus(id, "PAID");
+        salaryRecordMapper.updateStatusByBatch(id, "CONFIRMED", "PAID");
+        return Result.success();
     }
 
-    /**
-     * 查询员工年度薪资记录（用于个税累计预扣、年度汇总）
-     */
+    /** 批次归档（仅 PAID → ARCHIVED） */
+    @PostMapping("/batches/{id}/archive")
+    @RequirePermission("salary:batch:archive")
+    public Result<Void> archiveBatch(@PathVariable Long id) {
+        SalaryBatch batch = salaryBatchMapper.selectById(id);
+        if (batch == null || !"PAID".equals(batch.getStatus())) {
+            return Result.error("仅已发放批次可归档");
+        }
+        salaryBatchMapper.updateStatus(id, "ARCHIVED");
+        return Result.success();
+    }
+
+    // ═══════════════ 薪资记录查询（含数据权限） ═══════════════
+
+    @GetMapping("/records")
+    @RequirePermission("salary:calc:view")
+    public Result<List<SalaryRecord>> listRecords(@RequestParam(required = false) Long employeeId,
+                                                   @RequestParam int year,
+                                                   @RequestParam int month) {
+        if (employeeId != null) {
+            accessControlService.checkEmployeeAccess(employeeId);
+            SalaryRecord record = salaryRecordMapper.selectByEmployeeAndMonth(employeeId, year, month);
+            return Result.success(record != null ? List.of(record) : List.of());
+        }
+        // 全量查询仅 HR/财务
+        accessControlService.checkDeptAccess(null);
+        return Result.success(salaryRecordMapper.selectByDeptAndMonth(null, year, month));
+    }
+
     @GetMapping("/records/yearly")
-    @RequirePermission("salary:calc:view")
-    public Result<List<SalaryRecord>> yearlyRecords(
-            @RequestParam Long employeeId,
-            @RequestParam int year) {
-        List<SalaryRecord> records = salaryRecordMapper.selectByEmployeeAndYear(employeeId, year);
-        return Result.success(records);
+    @RequirePermission("salary:payslip:self")
+    public Result<List<SalaryRecord>> yearlyRecords(@RequestParam Long employeeId,
+                                                     @RequestParam int year) {
+        accessControlService.checkEmployeeAccess(employeeId);
+        return Result.success(salaryRecordMapper.selectByEmployeeAndYear(employeeId, year));
     }
 
-    /**
-     * 查看工资条详情（需二次验证：密码/验证码）
-     * 员工只能查看本人，HR/财务可查看他人
-     */
-    @GetMapping("/records/{id}")
-    @RequirePermission("salary:calc:view")
-    public Result<SalaryRecord> detail(@PathVariable Long id) {
-        // TODO: 根据权限范围判断是否允许查看
-        // TODO: 员工本人查看需二次验证（密码/验证码），由前端触发
-        // 此处暂时返回记录
-        return Result.success(null);
+    // ═══════════════ 工资条 ═══════════════
+
+    /** 员工本人工资条列表 */
+    @GetMapping("/payslips")
+    @RequirePermission("salary:payslip:self")
+    public Result<List<SalaryRecord>> myPayslips() {
+        Long empId = BaseContext.getCurrentEmployeeId();
+        return Result.success(payslipService.listMyPayslips(empId));
     }
 
-    // ═══════════════ 薪资确认 ═══════════════
-
-    /**
-     * 确认薪资记录（DRAFT → CONFIRMED）
-     */
-    @PutMapping("/records/{id}/confirm")
-    @RequirePermission("salary:calc:approve")
-    public Result<Void> confirm(@PathVariable Long id) {
-        salaryRecordMapper.updateStatus(id, "CONFIRMED");
-        return Result.success();
+    /** 工资条详情（员工本人 + 首次二次验证） */
+    @GetMapping("/payslips/{recordId}")
+    @RequirePermission("salary:payslip:self")
+    public Result<SalaryRecord> payslipDetail(@PathVariable Long recordId,
+                                                @RequestParam(required = false) String password) {
+        Long empId = BaseContext.getCurrentEmployeeId();
+        return Result.success(payslipService.getPayslipDetail(recordId, empId, password));
     }
 
-    /**
-     * 标记薪资已发放（CONFIRMED → PAID）
-     */
-    @PutMapping("/records/{id}/paid")
-    @RequirePermission("salary:calc:approve")
-    public Result<Void> markPaid(@PathVariable Long id) {
-        salaryRecordMapper.updateStatus(id, "PAID");
-        return Result.success();
+    // ═══════════════ 薪资报表 ═══════════════
+
+    @GetMapping("/reports/trend")
+    @RequirePermission("salary:report:view")
+    public Result<List<Map<String, Object>>> monthlyTrend() {
+        return Result.success(salaryReportService.monthlyTrend());
+    }
+
+    @GetMapping("/reports/dept-cost")
+    @RequirePermission("salary:report:view")
+    public Result<List<Map<String, Object>>> deptCost(@RequestParam int year, @RequestParam int month) {
+        return Result.success(salaryReportService.deptCostDistribution(year, month));
+    }
+
+    @GetMapping("/reports/composition")
+    @RequirePermission("salary:report:view")
+    public Result<Map<String, java.math.BigDecimal>> composition(@RequestParam int year, @RequestParam int month) {
+        return Result.success(salaryReportService.compositionPct(year, month));
     }
 }

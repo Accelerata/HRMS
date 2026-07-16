@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.SalaryAdjustmentMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.SalaryAdjustment">
+        <id column="id" property="id"/>
+        <result column="batch_id" property="batchId"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="record_id" property="recordId"/>
+        <result column="adjust_type" property="adjustType"/>
+        <result column="amount" property="amount"/>
+        <result column="reason" property="reason"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO salary_adjustment (batch_id, employee_id, record_id, adjust_type, amount, reason, operator_id, create_time)
+        VALUES (#{batchId}, #{employeeId}, #{recordId}, #{adjustType}, #{amount}, #{reason}, #{operatorId}, NOW())
+    </insert>
+
+    <select id="selectByBatchId" resultMap="BaseResultMap">
+        SELECT * FROM salary_adjustment WHERE batch_id = #{batchId} ORDER BY create_time ASC
+    </select>
+
+    <select id="selectByEmployeeAndBatch" resultMap="BaseResultMap">
+        SELECT * FROM salary_adjustment WHERE employee_id = #{employeeId} AND batch_id = #{batchId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM salary_adjustment WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByBatchId">
+        DELETE FROM salary_adjustment WHERE batch_id = #{batchId}
+    </delete>
+
+</mapper>

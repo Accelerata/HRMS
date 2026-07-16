@@ -12,6 +12,9 @@ import java.util.List;
 @Mapper
 public interface SalaryRecordMapper {
 
+    /** 根据ID查询 */
+    SalaryRecord selectById(@Param("id") Long id);
+
     /** 插入薪资记录 */
     int insert(SalaryRecord record);
 
