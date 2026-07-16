@@ -30,9 +30,14 @@ public class LeaveApplication {
     /** 请假结束日期 */
     private LocalDate endDate;
 
+    /** 开始时段：0-上午 1-下午 */
+    private Integer startPeriod;
+
+    /** 结束时段：0-上午 1-下午 */
+    private Integer endPeriod;
+
     /**
-     * 请假天数（支持0.5天）
-     * 上午半天=0.5, 下午半天=0.5, 全天=1.0
+     * 请假天数（支持0.5天），由服务端 LeaveDayCalculator 计算，不信任客户端值
      */
     private BigDecimal days;
 

@@ -48,6 +48,10 @@ class LeaveApprovalFlowTest {
     @Mock private ApprovalRecordMapper approvalRecordMapper;
     @Mock private ApprovalStateMachineService stateMachine;
     @Mock private NotificationService notificationService;
+    @Mock private LeaveDayCalculator leaveDayCalculator;
+    @Mock private LeaveAttachmentMapper leaveAttachmentMapper;
+    @Mock private CompLeaveGrantMapper compLeaveGrantMapper;
+    @Mock private CompLeaveUsageMapper compLeaveUsageMapper;
 
     @InjectMocks
     private LeaveService leaveService;
@@ -86,6 +90,27 @@ class LeaveApprovalFlowTest {
         compBalance.setYear(2026);
         when(leaveBalanceMapper.selectByEmployeeTypeAndYear(eq(100L), eq(LeaveType.COMPENSATORY.getCode()), anyInt()))
                 .thenReturn(compBalance);
+
+        // 新增依赖 mock
+        when(leaveDayCalculator.calculate(any(), anyInt(), any(), anyInt())).thenReturn(new BigDecimal("2"));
+        // 附件校验 mock：返回非空列表以通过病假/婚假/产假的条件必填校验
+        LeaveAttachment dummyAttachment = new LeaveAttachment();
+        dummyAttachment.setId(1L);
+        dummyAttachment.setApplicationId(1L);
+        dummyAttachment.setFileName("test.pdf");
+        dummyAttachment.setUploadBy(100L);
+        when(leaveAttachmentMapper.selectByApplicationId(anyLong())).thenReturn(List.of(dummyAttachment));
+        when(leaveApplicationMapper.insert(any())).thenReturn(1);
+        // 调休 FIFO mock
+        CompLeaveGrant grant = new CompLeaveGrant();
+        grant.setId(1L);
+        grant.setEmployeeId(100L);
+        grant.setDays(new BigDecimal("10"));
+        grant.setUsedDays(BigDecimal.ZERO);
+        grant.setExpireDate(LocalDate.of(2026, 12, 31));
+        grant.setStatus(1);
+        when(compLeaveGrantMapper.selectValidByEmployee(eq(100L))).thenReturn(List.of(grant));
+        when(compLeaveUsageMapper.insert(any())).thenReturn(1);
     }
 
     @AfterEach

@@ -53,6 +53,10 @@ public class LeaveService {
     private final ApprovalRecordMapper approvalRecordMapper;
     private final ApprovalStateMachineService stateMachine;
     private final NotificationService notificationService;
+    private final LeaveDayCalculator leaveDayCalculator;
+    private final LeaveAttachmentMapper leaveAttachmentMapper;
+    private final CompLeaveGrantMapper compLeaveGrantMapper;
+    private final CompLeaveUsageMapper compLeaveUsageMapper;
 
     // ═══════════════ 假期余额查询 ═══════════════
 
@@ -85,10 +89,49 @@ public class LeaveService {
         log.info("初始化年假余额: employeeId={}, year={}, days={}", employeeId, year, annualDays);
     }
 
+    /**
+     * 入职初始化余额：建年假（首年 0 天）+ 调休（0 天）余额行
+     * 由入职流程在员工激活时调用
+     */
+    @Transactional
+    public void initNewEmployeeBalances(Long employeeId, LocalDate entryDate, int year) {
+        // 年假（首年 0 天）
+        LeaveBalance annualExisting = leaveBalanceMapper.selectByEmployeeTypeAndYear(
+                employeeId, LeaveType.ANNUAL.getCode(), year);
+        if (annualExisting == null) {
+            LeaveBalance annual = new LeaveBalance();
+            annual.setEmployeeId(employeeId);
+            annual.setLeaveType(LeaveType.ANNUAL.getCode());
+            annual.setTotalDays(BigDecimal.ZERO);
+            annual.setUsedDays(BigDecimal.ZERO);
+            annual.setRemainingDays(BigDecimal.ZERO);
+            annual.setYear(year);
+            leaveBalanceMapper.insert(annual);
+            log.info("入职初始化年假余额: employeeId={}, year={}, days=0", employeeId, year);
+        }
+
+        // 调休（0 天）
+        LeaveBalance compExisting = leaveBalanceMapper.selectByEmployeeTypeAndYear(
+                employeeId, LeaveType.COMPENSATORY.getCode(), year);
+        if (compExisting == null) {
+            LeaveBalance comp = new LeaveBalance();
+            comp.setEmployeeId(employeeId);
+            comp.setLeaveType(LeaveType.COMPENSATORY.getCode());
+            comp.setTotalDays(BigDecimal.ZERO);
+            comp.setUsedDays(BigDecimal.ZERO);
+            comp.setRemainingDays(BigDecimal.ZERO);
+            comp.setYear(year);
+            leaveBalanceMapper.insert(comp);
+            log.info("入职初始化调休余额: employeeId={}, year={}, days=0", employeeId, year);
+        }
+    }
+
     // ═══════════════ 请假申请 ═══════════════
 
     /**
      * 创建请假申请（草稿，仅校验余额不扣减，扣减在提交时执行）
+     *
+     * 天数由服务端 LeaveDayCalculator 计算后覆盖客户端值，不信任客户端 days。
      */
     @Transactional
     public LeaveApplication apply(LeaveApplyDTO dto) {
@@ -96,19 +139,22 @@ public class LeaveService {
         if (dto.getEmployeeId() != null && !dto.getEmployeeId().equals(employee.getId())) {
             throw BaseException.forbidden("不能代他人提交请假申请");
         }
-        if (dto.getEndDate().isBefore(dto.getStartDate())) {
-            throw BaseException.badRequest("结束日期不能早于开始日期");
-        }
-        if (dto.getDays() == null || dto.getDays().compareTo(BigDecimal.ZERO) <= 0) {
-            throw BaseException.badRequest("请假天数必须大于0");
-        }
+
+        // 时段默认值：开始默认上午，结束默认下午
+        int startPeriod = dto.getStartPeriod() != null ? dto.getStartPeriod() : 0;
+        int endPeriod = dto.getEndPeriod() != null ? dto.getEndPeriod() : 1;
+
+        // 服务端权威计算天数
+        BigDecimal calculatedDays = leaveDayCalculator.calculate(
+                dto.getStartDate(), startPeriod,
+                dto.getEndDate(), endPeriod);
 
         LeaveType type = LeaveType.fromCode(dto.getLeaveType());
 
         // 对需要校验余额的假期类型，检查余额（不扣减）
         if (type == LeaveType.ANNUAL || type == LeaveType.COMPENSATORY) {
             LeaveBalance balance = requireBalance(employee.getId(), dto.getLeaveType(), dto.getStartDate().getYear());
-            if (!hasEnoughBalance(balance, dto.getDays())) {
+            if (!hasEnoughBalance(balance, calculatedDays)) {
                 throw BaseException.badRequest(
                         type.getLabel() + "余额不足，当前剩余" + balance.getRemainingDays() + "天");
             }
@@ -119,14 +165,23 @@ public class LeaveService {
         application.setLeaveType(dto.getLeaveType());
         application.setStartDate(dto.getStartDate());
         application.setEndDate(dto.getEndDate());
-        application.setDays(dto.getDays());
+        application.setStartPeriod(startPeriod);
+        application.setEndPeriod(endPeriod);
+        application.setDays(calculatedDays);
         application.setReason(dto.getReason());
         application.setHandoverTo(dto.getHandoverTo());
         application.setStatus(STATUS_DRAFT);
         leaveApplicationMapper.insert(application);
 
-        log.info("请假申请草稿创建成功: id={}, employeeId={}, type={}, days={}",
-                application.getId(), employee.getId(), type.getLabel(), dto.getDays());
+        // 绑定附件（先上传后绑定，归属校验在 bindToApplication 中）
+        if (dto.getAttachmentIds() != null && !dto.getAttachmentIds().isEmpty()) {
+            for (Long attachmentId : dto.getAttachmentIds()) {
+                bindAttachment(attachmentId, application.getId(), employee.getId());
+            }
+        }
+
+        log.info("请假申请草稿创建成功: id={}, employeeId={}, type={}, days={} (系统计算)",
+                application.getId(), employee.getId(), type.getLabel(), calculatedDays);
         return application;
     }
 
@@ -146,12 +201,17 @@ public class LeaveService {
 
         LeaveType type = LeaveType.fromCode(application.getLeaveType());
 
+        // 条件必填附件校验
+        validateAttachmentRequirement(application);
+
         // 占用余额（年假/调休）
-        if (type == LeaveType.ANNUAL || type == LeaveType.COMPENSATORY) {
+        if (type == LeaveType.ANNUAL) {
             LeaveBalance balance = requireBalance(employee.getId(), application.getLeaveType(),
                     application.getStartDate().getYear());
             deductBalance(balance, application.getDays());
             leaveBalanceMapper.update(balance);
+        } else if (type == LeaveType.COMPENSATORY) {
+            deductCompBalanceFIFO(employee.getId(), application);
         }
 
         application.setStatus(STATUS_PENDING);
@@ -237,6 +297,46 @@ public class LeaveService {
         return leaveApplicationMapper.selectByEmployee(employeeId, offset, size);
     }
 
+    // ═══════════════ 附件相关 ═══════════════
+
+    /**
+     * 绑定附件到申请，校验附件归属本人
+     */
+    private void bindAttachment(Long attachmentId, Long applicationId, Long employeeId) {
+        LeaveAttachment attachment = leaveAttachmentMapper.selectById(attachmentId);
+        if (attachment == null) {
+            throw BaseException.notFound("附件不存在: " + attachmentId);
+        }
+        if (!attachment.getUploadBy().equals(employeeId)) {
+            throw BaseException.forbidden("不能绑定他人上传的附件");
+        }
+        leaveAttachmentMapper.bindToApplication(attachmentId, applicationId);
+    }
+
+    /**
+     * 条件必填附件校验：病假>1天、婚假、产假须绑定≥1附件
+     */
+    private void validateAttachmentRequirement(LeaveApplication application) {
+        LeaveType type = LeaveType.fromCode(application.getLeaveType());
+        boolean requiresAttachment = false;
+        String label = type.getLabel();
+
+        if (type == LeaveType.SICK && application.getDays().compareTo(BigDecimal.ONE) > 0) {
+            requiresAttachment = true;
+        } else if (type == LeaveType.MARRIAGE || type == LeaveType.MATERNITY) {
+            requiresAttachment = true;
+        }
+
+        if (!requiresAttachment) {
+            return;
+        }
+
+        List<LeaveAttachment> attachments = leaveAttachmentMapper.selectByApplicationId(application.getId());
+        if (attachments == null || attachments.isEmpty()) {
+            throw BaseException.badRequest("请上传" + label + "证明材料");
+        }
+    }
+
     // ═══════════════ 审批辅助 ═══════════════
 
     /**
@@ -293,20 +393,67 @@ public class LeaveService {
         if (type != LeaveType.ANNUAL && type != LeaveType.COMPENSATORY) {
             return;
         }
+
+        if (type == LeaveType.ANNUAL) {
+            restoreAnnualBalance(application);
+        } else {
+            restoreCompBalance(application);
+        }
+    }
+
+    private void restoreAnnualBalance(LeaveApplication application) {
         LeaveBalance balance = leaveBalanceMapper.selectByEmployeeTypeAndYear(
-                application.getEmployeeId(), application.getLeaveType(),
+                application.getEmployeeId(), LeaveType.ANNUAL.getCode(),
                 application.getStartDate().getYear());
         if (balance == null) {
-            log.warn("回补余额失败，余额记录不存在: employeeId={}, type={}",
-                    application.getEmployeeId(), type.getLabel());
+            log.warn("回补年假余额失败，余额记录不存在: employeeId={}",
+                    application.getEmployeeId());
             return;
         }
         BigDecimal newUsed = balance.getUsedDays().subtract(application.getDays());
         balance.setUsedDays(newUsed.max(BigDecimal.ZERO));
         balance.setRemainingDays(balance.getTotalDays().subtract(balance.getUsedDays()));
         leaveBalanceMapper.update(balance);
-        log.info("假期余额已回补: employeeId={}, type={}, days={}",
-                application.getEmployeeId(), type.getLabel(), application.getDays());
+        log.info("年假余额已回补: employeeId={}, days={}", application.getEmployeeId(), application.getDays());
+    }
+
+    /**
+     * 调休回补：按 comp_leave_usage 逆向回填各 grant.used_days + 回补 leave_balance
+     */
+    private void restoreCompBalance(LeaveApplication application) {
+        List<CompLeaveUsage> usages = compLeaveUsageMapper.selectByApplicationId(application.getId());
+        if (usages == null || usages.isEmpty()) {
+            log.warn("调休回补: 无占用记录, applicationId={}", application.getId());
+            return;
+        }
+
+        BigDecimal totalRestored = BigDecimal.ZERO;
+        for (CompLeaveUsage usage : usages) {
+            CompLeaveGrant grant = compLeaveGrantMapper.selectById(usage.getGrantId());
+            if (grant != null) {
+                BigDecimal newUsed = grant.getUsedDays().subtract(usage.getDays());
+                grant.setUsedDays(newUsed.max(BigDecimal.ZERO));
+                compLeaveGrantMapper.updateUsedDays(grant.getId(), grant.getUsedDays());
+            }
+            totalRestored = totalRestored.add(usage.getDays());
+        }
+
+        // 回补 leave_balance 调休行
+        LeaveBalance balance = leaveBalanceMapper.selectByEmployeeTypeAndYear(
+                application.getEmployeeId(), LeaveType.COMPENSATORY.getCode(),
+                application.getStartDate().getYear());
+        if (balance != null) {
+            BigDecimal newUsed = balance.getUsedDays().subtract(totalRestored);
+            balance.setUsedDays(newUsed.max(BigDecimal.ZERO));
+            balance.setRemainingDays(balance.getTotalDays().subtract(balance.getUsedDays()));
+            leaveBalanceMapper.update(balance);
+        }
+
+        // 清理占用记录
+        compLeaveUsageMapper.deleteByApplicationId(application.getId());
+
+        log.info("调休余额已回补: employeeId={}, days={}, 涉及{}笔入账",
+                application.getEmployeeId(), totalRestored, usages.size());
     }
 
     private void closePendingApprovalRecords(Long leaveId) {
@@ -407,12 +554,7 @@ public class LeaveService {
     }
 
     /**
-     * 扣减假期余额
-     *
-     * @param balance 当前余额记录
-     * @param useDays 请假天数
-     * @return 扣减后的余额
-     * @throws BaseException 余额不足时抛出
+     * 扣减假期余额（年假专用）
      */
     public LeaveBalance deductBalance(LeaveBalance balance, BigDecimal useDays) {
         if (!hasEnoughBalance(balance, useDays)) {
@@ -427,5 +569,57 @@ public class LeaveService {
         balance.setRemainingDays(newRemaining);
 
         return balance;
+    }
+
+    /**
+     * 调休 FIFO 扣减：按过期日升序逐笔扣减 grant.used_days + 写 comp_leave_usage + 扣 leave_balance
+     */
+    private void deductCompBalanceFIFO(Long employeeId, LeaveApplication application) {
+        int year = application.getStartDate().getYear();
+        LeaveBalance balance = requireBalance(employeeId, LeaveType.COMPENSATORY.getCode(), year);
+        BigDecimal needDays = application.getDays();
+        if (!hasEnoughBalance(balance, needDays)) {
+            throw BaseException.badRequest(
+                    "调休余额不足，当前剩余" + balance.getRemainingDays() + "天，无法请假" + needDays + "天");
+        }
+
+        List<CompLeaveGrant> grants = compLeaveGrantMapper.selectValidByEmployee(employeeId);
+        BigDecimal remaining = needDays;
+
+        for (CompLeaveGrant grant : grants) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+
+            // 该入账还可用的天数
+            BigDecimal available = grant.getDays().subtract(grant.getUsedDays());
+            if (available.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            BigDecimal deductFromThis = remaining.compareTo(available) < 0 ? remaining : available;
+
+            // 更新 grant.used_days
+            grant.setUsedDays(grant.getUsedDays().add(deductFromThis));
+            compLeaveGrantMapper.updateUsedDays(grant.getId(), grant.getUsedDays());
+
+            // 写占用明细
+            CompLeaveUsage usage = new CompLeaveUsage();
+            usage.setApplicationId(application.getId());
+            usage.setGrantId(grant.getId());
+            usage.setDays(deductFromThis);
+            compLeaveUsageMapper.insert(usage);
+
+            remaining = remaining.subtract(deductFromThis);
+        }
+
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            throw BaseException.badRequest("调休余额不足（有效入账不足以覆盖所需天数）");
+        }
+
+        // 同步扣减 leave_balance 聚合缓存
+        BigDecimal newUsed = balance.getUsedDays().add(needDays);
+        balance.setUsedDays(newUsed);
+        balance.setRemainingDays(balance.getTotalDays().subtract(newUsed));
+        leaveBalanceMapper.update(balance);
+
+        log.info("调休FIFO扣减完成: employeeId={}, needDays={}, deducted={}, remaining={}",
+                employeeId, needDays, needDays, balance.getRemainingDays());
     }
 }

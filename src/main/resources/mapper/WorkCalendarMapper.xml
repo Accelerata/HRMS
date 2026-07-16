@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.WorkCalendarMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.WorkCalendar">
+        <id column="id" property="id"/>
+        <result column="calendar_date" property="calendarDate"/>
+        <result column="day_type" property="dayType"/>
+        <result column="name" property="name"/>
+        <result column="year" property="year"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByDate" resultMap="BaseResultMap">
+        SELECT * FROM work_calendar WHERE calendar_date = #{calendarDate}
+    </select>
+
+    <select id="selectByYear" resultMap="BaseResultMap">
+        SELECT * FROM work_calendar WHERE year = #{year} ORDER BY calendar_date ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO work_calendar (calendar_date, day_type, name, year, create_time, update_time)
+        VALUES (#{calendarDate}, #{dayType}, #{name}, #{year}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE work_calendar
+        SET day_type = #{dayType}, name = #{name}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByDate">
+        DELETE FROM work_calendar WHERE calendar_date = #{calendarDate}
+    </delete>
+
+    <insert id="batchUpsert">
+        INSERT INTO work_calendar (calendar_date, day_type, name, year, create_time, update_time) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.calendarDate}, #{item.dayType}, #{item.name}, #{item.year}, NOW(), NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            day_type = VALUES(day_type),
+            name = VALUES(name),
+            update_time = NOW()
+    </insert>
+
+</mapper>

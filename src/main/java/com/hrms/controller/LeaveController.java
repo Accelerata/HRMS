@@ -6,11 +6,14 @@ import com.hrms.dto.LeaveApplyDTO;
 import com.hrms.entity.LeaveApplication;
 import com.hrms.entity.LeaveBalance;
 import com.hrms.result.Result;
+import com.hrms.service.LeaveDayCalculator;
 import com.hrms.service.LeaveService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -28,6 +31,23 @@ import java.util.List;
 public class LeaveController {
 
     private final LeaveService leaveService;
+    private final LeaveDayCalculator leaveDayCalculator;
+
+    // ═══════════════ 天数试算预览 ═══════════════
+
+    /** 天数试算预览（供前端实时回显） */
+    @GetMapping("/days/calculate")
+    @RequirePermission("att:leave:apply")
+    public Result<BigDecimal> calculateDays(
+            @RequestParam String startDate,
+            @RequestParam(defaultValue = "0") int startPeriod,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "1") int endPeriod) {
+        BigDecimal days = leaveDayCalculator.calculate(
+                LocalDate.parse(startDate), startPeriod,
+                LocalDate.parse(endDate), endPeriod);
+        return Result.success(days);
+    }
 
     // ═══════════════ 假期余额 ═══════════════
 

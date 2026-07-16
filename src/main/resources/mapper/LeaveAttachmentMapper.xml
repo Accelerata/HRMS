@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.LeaveAttachmentMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.LeaveAttachment">
+        <id column="id" property="id"/>
+        <result column="application_id" property="applicationId"/>
+        <result column="file_name" property="fileName"/>
+        <result column="object_key" property="objectKey"/>
+        <result column="file_url" property="fileUrl"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="content_type" property="contentType"/>
+        <result column="upload_by" property="uploadBy"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM leave_attachment WHERE id = #{id}
+    </select>
+
+    <select id="selectByApplicationId" resultMap="BaseResultMap">
+        SELECT * FROM leave_attachment WHERE application_id = #{applicationId} ORDER BY create_time ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO leave_attachment (
+            application_id, file_name, object_key, file_url,
+            file_size, content_type, upload_by, create_time
+        ) VALUES (
+            #{applicationId}, #{fileName}, #{objectKey}, #{fileUrl},
+            #{fileSize}, #{contentType}, #{uploadBy}, NOW()
+        )
+    </insert>
+
+    <update id="bindToApplication">
+        UPDATE leave_attachment SET application_id = #{applicationId} WHERE id = #{id}
+    </update>
+
+</mapper>

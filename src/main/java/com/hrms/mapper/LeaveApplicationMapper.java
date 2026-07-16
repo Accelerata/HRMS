@@ -1,9 +1,11 @@
 package com.hrms.mapper;
 
 import com.hrms.entity.LeaveApplication;
+import com.hrms.vo.LeaveStatsByTypeVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -36,14 +38,41 @@ public interface LeaveApplicationMapper {
 
     /**
      * 汇总某类型已通过请假的天数（用于薪资核算事假扣款）
-     * @param employeeId 员工ID
-     * @param leaveType  假期类型（3=事假）
-     * @param startDate  日期范围起始
-     * @param endDate    日期范围结束
-     * @return 请假天数合计
      */
     java.math.BigDecimal sumApprovedLeaveDays(@Param("employeeId") Long employeeId,
                                                @Param("leaveType") Integer leaveType,
                                                @Param("startDate") java.time.LocalDate startDate,
                                                @Param("endDate") java.time.LocalDate endDate);
+
+    /**
+     * 统计指定员工某月分类型已通过请假天数（个人统计）
+     */
+    List<LeaveStatsByTypeVO> countApprovedByTypeAndEmployee(
+            @Param("employeeId") Long employeeId,
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd);
+
+    /**
+     * 统计指定部门某月分类型已通过请假天数（部门统计）
+     */
+    List<LeaveStatsByTypeVO> countApprovedByTypeAndDept(
+            @Param("deptId") Long deptId,
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd);
+
+    /**
+     * 统计全公司或指定部门某月请假类型分布
+     */
+    List<LeaveStatsByTypeVO> countApprovedTypeDistribution(
+            @Param("deptId") Long deptId,
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd);
+
+    /**
+     * 部门某月已通过请假天数合计
+     */
+    java.math.BigDecimal sumApprovedByDept(
+            @Param("deptId") Long deptId,
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd);
 }
