@@ -7,6 +7,7 @@
         <result column="position_name" property="positionName"/>
         <result column="position_code" property="positionCode"/>
         <result column="sequence" property="sequence"/>
+        <result column="dept_id" property="deptId"/>
         <result column="grade_range" property="gradeRange"/>
         <result column="default_probation_months" property="defaultProbationMonths"/>
         <result column="description" property="description"/>
@@ -33,9 +34,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO `position` (position_name, position_code, `sequence`, grade_range,
+        INSERT INTO `position` (position_name, position_code, `sequence`, dept_id, grade_range,
                                 default_probation_months, description, is_standard, status, create_time, update_time)
-        VALUES (#{positionName}, #{positionCode}, #{sequence}, #{gradeRange},
+        VALUES (#{positionName}, #{positionCode}, #{sequence}, #{deptId}, #{gradeRange},
                 #{defaultProbationMonths}, #{description}, #{isStandard}, #{status}, NOW(), NOW())
     </insert>
 
@@ -44,6 +45,7 @@
         SET position_name            = #{positionName},
             position_code            = #{positionCode},
             `sequence`               = #{sequence},
+            dept_id                  = #{deptId},
             grade_range              = #{gradeRange},
             default_probation_months = #{defaultProbationMonths},
             description              = #{description},

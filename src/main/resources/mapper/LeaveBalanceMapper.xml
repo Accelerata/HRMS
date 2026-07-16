@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.LeaveBalanceMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.LeaveBalance">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="leave_type" property="leaveType"/>
+        <result column="total_days" property="totalDays"/>
+        <result column="used_days" property="usedDays"/>
+        <result column="remaining_days" property="remainingDays"/>
+        <result column="year" property="year"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 根据员工ID和年份查询所有假期余额 -->
+    <select id="selectByEmployeeAndYear" resultMap="BaseResultMap">
+        SELECT * FROM leave_balance
+        WHERE employee_id = #{employeeId} AND year = #{year}
+    </select>
+
+    <!-- 根据员工ID、假期类型和年份查询单条 -->
+    <select id="selectByEmployeeTypeAndYear" resultMap="BaseResultMap">
+        SELECT * FROM leave_balance
+        WHERE employee_id = #{employeeId}
+          AND leave_type = #{leaveType}
+          AND year = #{year}
+    </select>
+
+    <!-- 插入假期余额 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO leave_balance (employee_id, leave_type, total_days, used_days, remaining_days, year, create_time, update_time)
+        VALUES (#{employeeId}, #{leaveType}, #{totalDays}, #{usedDays}, #{remainingDays}, #{year}, NOW(), NOW())
+    </insert>
+
+    <!-- 更新假期余额（扣减时使用） -->
+    <update id="update">
+        UPDATE leave_balance
+        SET total_days     = #{totalDays},
+            used_days      = #{usedDays},
+            remaining_days = #{remainingDays},
+            update_time    = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 初始化年假余额（构建SQL直接插值，简化调用） -->
+    <insert id="initAnnualLeave">
+        INSERT INTO leave_balance (employee_id, leave_type, total_days, used_days, remaining_days, year, create_time, update_time)
+        VALUES (#{employeeId}, 1, #{totalDays}, 0, #{totalDays}, #{year}, NOW(), NOW())
+    </insert>
+
+</mapper>

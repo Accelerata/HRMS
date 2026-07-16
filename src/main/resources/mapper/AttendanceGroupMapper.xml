@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.AttendanceGroupMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.AttendanceGroup">
+        <id column="id" property="id"/>
+        <result column="group_name" property="groupName"/>
+        <result column="group_type" property="groupType"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="flex_threshold" property="flexThreshold"/>
+        <result column="absent_half_day_threshold" property="absentHalfDayThreshold"/>
+        <result column="dept_id" property="deptId"/>
+        <result column="position_id" property="positionId"/>
+        <result column="employee_ids" property="employeeIds"/>
+        <result column="lunch_break_start" property="lunchBreakStart"/>
+        <result column="lunch_break_end" property="lunchBreakEnd"/>
+        <result column="late_threshold_minutes" property="lateThresholdMinutes"/>
+        <result column="early_threshold_minutes" property="earlyThresholdMinutes"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, group_name, group_type, start_time, end_time,
+        flex_threshold, absent_half_day_threshold,
+        dept_id, position_id, employee_ids,
+        lunch_break_start, lunch_break_end,
+        late_threshold_minutes, early_threshold_minutes,
+        create_time, update_time
+    </sql>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM attendance_group ORDER BY id ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM attendance_group WHERE id = #{id}
+    </select>
+
+    <select id="selectByName" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/> FROM attendance_group WHERE group_name = #{groupName}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO attendance_group (
+            group_name, group_type, start_time, end_time,
+            flex_threshold, absent_half_day_threshold,
+            dept_id, position_id, employee_ids,
+            lunch_break_start, lunch_break_end,
+            late_threshold_minutes, early_threshold_minutes,
+            create_time, update_time
+        ) VALUES (
+            #{groupName}, #{groupType}, #{startTime}, #{endTime},
+            #{flexThreshold}, #{absentHalfDayThreshold},
+            #{deptId}, #{positionId}, #{employeeIds},
+            #{lunchBreakStart}, #{lunchBreakEnd},
+            #{lateThresholdMinutes}, #{earlyThresholdMinutes},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE attendance_group
+        <set>
+            <if test="groupName != null">group_name = #{groupName},</if>
+            <if test="groupType != null">group_type = #{groupType},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="flexThreshold != null">flex_threshold = #{flexThreshold},</if>
+            <if test="absentHalfDayThreshold != null">absent_half_day_threshold = #{absentHalfDayThreshold},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="positionId != null">position_id = #{positionId},</if>
+            <if test="employeeIds != null">employee_ids = #{employeeIds},</if>
+            <if test="lunchBreakStart != null">lunch_break_start = #{lunchBreakStart},</if>
+            <if test="lunchBreakEnd != null">lunch_break_end = #{lunchBreakEnd},</if>
+            <if test="lateThresholdMinutes != null">late_threshold_minutes = #{lateThresholdMinutes},</if>
+            <if test="earlyThresholdMinutes != null">early_threshold_minutes = #{earlyThresholdMinutes},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM attendance_group WHERE id = #{id}
+    </delete>
+
+</mapper>

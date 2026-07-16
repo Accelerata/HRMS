@@ -57,4 +57,13 @@ public class DepartmentController {
         departmentService.delete(id);
         return Result.success();
     }
+
+    /** 部门合并：将源部门所有员工转移至目标部门，源部门标记为已合并 */
+    @PostMapping("/{id}/merge")
+    @RequirePermission("org:dept:manage")
+    public Result<Void> merge(@PathVariable Long id,
+                              @RequestParam Long targetDeptId) {
+        departmentService.mergeDepartments(id, targetDeptId);
+        return Result.success();
+    }
 }

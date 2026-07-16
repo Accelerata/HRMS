@@ -80,12 +80,15 @@ public class PositionService {
         position.setSequence(dto.getSequence());
         position.setGradeRange(dto.getGradeRange());
         position.setDefaultProbationMonths(dto.getDefaultProbationMonths());
+        position.setDeptId(dto.getDeptId());
         position.setDescription(dto.getDescription());
+        position.setIsStandard(dto.getIsStandard() != null ? dto.getIsStandard() : 1);
         position.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
 
         positionMapper.insert(position);
-        log.info("职位创建成功: id={}, name={}, sequence={}", position.getId(),
-                position.getPositionName(), position.getSequence());
+        log.info("职位创建成功: id={}, name={}, code={}, sequence={}, isStandard={}",
+                position.getId(), position.getPositionName(), position.getPositionCode(),
+                position.getSequence(), position.getIsStandard());
     }
 
     // ═══════════════ 更新 ═══════════════
@@ -123,11 +126,14 @@ public class PositionService {
         position.setSequence(dto.getSequence());
         position.setGradeRange(dto.getGradeRange());
         position.setDefaultProbationMonths(dto.getDefaultProbationMonths());
+        position.setDeptId(dto.getDeptId());
         position.setDescription(dto.getDescription());
+        position.setIsStandard(dto.getIsStandard() != null ? dto.getIsStandard() : existing.getIsStandard());
         position.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
 
         positionMapper.update(position);
-        log.info("职位更新成功: id={}, name={}", position.getId(), position.getPositionName());
+        log.info("职位更新成功: id={}, name={}, code={}", position.getId(),
+                position.getPositionName(), position.getPositionCode());
     }
 
     // ═══════════════ 删除 ═══════════════

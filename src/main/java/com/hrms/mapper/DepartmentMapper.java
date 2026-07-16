@@ -43,4 +43,7 @@ public interface DepartmentMapper {
     int countByNameAndParent(@Param("deptName") String deptName,
                              @Param("parentId") Long parentId,
                              @Param("excludeId") Long excludeId);
+
+    /** 递归查询子部门ID列表（含所有后代部门） */
+    List<Long> selectSubDeptIdsRecursive(@Param("deptId") Long deptId);
 }

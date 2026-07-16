@@ -77,6 +77,10 @@
         SELECT <include refid="BaseColumns"/> FROM employee WHERE id = #{id}
     </select>
 
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM employee WHERE user_id = #{userId} LIMIT 1
+    </select>
+
     <select id="selectByEmployeeNo" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/> FROM employee WHERE employee_no = #{employeeNo}
     </select>
@@ -333,6 +337,133 @@
     <!-- 按身份证号明文查询（仅用于迁移期间，迁移完成后废弃） -->
     <select id="selectByIdCard" resultMap="BaseResultMap">
         SELECT <include refid="BaseColumns"/> FROM employee WHERE id_card = #{idCard} LIMIT 1
+    </select>
+
+    <!-- 批量转移部门（部门合并） -->
+    <update id="updateDeptByDept">
+        UPDATE employee SET dept_id = #{targetDeptId}, update_time = NOW()
+        WHERE dept_id = #{sourceDeptId} AND status IN (1, 2)
+    </update>
+
+    <!-- 统计指定部门列表中的在职员工数 -->
+    <select id="countActiveByDeptIds" resultType="int">
+        SELECT COUNT(*) FROM employee
+        WHERE dept_id IN
+        <foreach collection="deptIds" item="deptId" open="(" separator="," close=")">
+            #{deptId}
+        </foreach>
+        AND status IN (1, 2)
+    </select>
+
+    <!-- ═══════════════ 高级搜索 ═══════════════ -->
+
+    <!-- 高级搜索列表查询（多条件 AND 组合） -->
+    <select id="selectByConditions" resultType="com.hrms.vo.EmployeeListVO">
+        SELECT
+            e.id,
+            e.employee_no   AS employeeNo,
+            e.name,
+            d.dept_name     AS deptName,
+            p.position_name AS positionName,
+            e.grade,
+            e.status,
+            e.entry_date    AS entryDate
+        FROM employee e
+        LEFT JOIN department d ON e.dept_id = d.id
+        LEFT JOIN position p ON e.position_id = p.id
+        <where>
+            <!-- 关键词：姓名/工号模糊匹配 -->
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (e.name LIKE CONCAT('%', #{dto.keyword}, '%')
+                     OR e.employee_no LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+            <!-- 手机号哈希精确匹配 -->
+            <if test="phoneHash != null and phoneHash != ''">
+                AND e.phone_hash = #{phoneHash}
+            </if>
+            <!-- 部门ID列表（多选） -->
+            <if test="dto.deptIds != null and dto.deptIds.size() > 0">
+                AND e.dept_id IN
+                <foreach collection="dto.deptIds" item="deptId" open="(" separator="," close=")">
+                    #{deptId}
+                </foreach>
+            </if>
+            <!-- 职位ID列表（多选） -->
+            <if test="dto.positionIds != null and dto.positionIds.size() > 0">
+                AND e.position_id IN
+                <foreach collection="dto.positionIds" item="posId" open="(" separator="," close=")">
+                    #{posId}
+                </foreach>
+            </if>
+            <!-- 在职状态列表（多选） -->
+            <if test="dto.statuses != null and dto.statuses.size() > 0">
+                AND e.status IN
+                <foreach collection="dto.statuses" item="st" open="(" separator="," close=")">
+                    #{st}
+                </foreach>
+            </if>
+            <!-- 职级列表（多选） -->
+            <if test="dto.grades != null and dto.grades.size() > 0">
+                AND e.grade IN
+                <foreach collection="dto.grades" item="g" open="(" separator="," close=")">
+                    #{g}
+                </foreach>
+            </if>
+            <!-- 入职日期范围 -->
+            <if test="dto.startDate != null">
+                AND e.entry_date &gt;= #{dto.startDate}
+            </if>
+            <if test="dto.endDate != null">
+                AND e.entry_date &lt;= #{dto.endDate}
+            </if>
+        </where>
+        ORDER BY e.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- 高级搜索总数 -->
+    <select id="countByConditions" resultType="int">
+        SELECT COUNT(*)
+        FROM employee e
+        <where>
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (e.name LIKE CONCAT('%', #{dto.keyword}, '%')
+                     OR e.employee_no LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+            <if test="phoneHash != null and phoneHash != ''">
+                AND e.phone_hash = #{phoneHash}
+            </if>
+            <if test="dto.deptIds != null and dto.deptIds.size() > 0">
+                AND e.dept_id IN
+                <foreach collection="dto.deptIds" item="deptId" open="(" separator="," close=")">
+                    #{deptId}
+                </foreach>
+            </if>
+            <if test="dto.positionIds != null and dto.positionIds.size() > 0">
+                AND e.position_id IN
+                <foreach collection="dto.positionIds" item="posId" open="(" separator="," close=")">
+                    #{posId}
+                </foreach>
+            </if>
+            <if test="dto.statuses != null and dto.statuses.size() > 0">
+                AND e.status IN
+                <foreach collection="dto.statuses" item="st" open="(" separator="," close=")">
+                    #{st}
+                </foreach>
+            </if>
+            <if test="dto.grades != null and dto.grades.size() > 0">
+                AND e.grade IN
+                <foreach collection="dto.grades" item="g" open="(" separator="," close=")">
+                    #{g}
+                </foreach>
+            </if>
+            <if test="dto.startDate != null">
+                AND e.entry_date &gt;= #{dto.startDate}
+            </if>
+            <if test="dto.endDate != null">
+                AND e.entry_date &lt;= #{dto.endDate}
+            </if>
+        </where>
     </select>
 
 </mapper>

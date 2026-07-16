@@ -9,6 +9,7 @@ import com.hrms.enums.ApprovalStatusEnum;
 import com.hrms.enums.BusinessTypeEnum;
 import com.hrms.enums.EmployeeStatusEnum;
 import com.hrms.enums.ResignationTypeEnum;
+import com.hrms.enums.SensitiveFieldPolicy;
 import com.hrms.enums.TransferTypeEnum;
 import com.hrms.mapper.*;
 import com.hrms.result.*;
@@ -40,6 +41,7 @@ public class ResignationService {
     private final DepartmentMapper departmentMapper;
     private final EmployeeAccountService employeeAccountService;
     private final NotificationService notificationService;
+    private final EmployeeService employeeService;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -157,11 +159,40 @@ public class ResignationService {
         }
     }
 
-    /** 获取脱敏后的离职档案（按角色） */
+    /**
+     * 获取脱敏后的离职档案。
+     *
+     * 对已离职员工敏感信息按以下规则脱敏：
+     * - 身份证号：保留首3尾4（如 110***********1234）
+     * - 手机号：保留首3尾4（如 138****5678）
+     * - 银行卡号：保留尾4（如 ****1234）
+     * - 薪资信息：仅返回最后一个月的实发汇总
+     *
+     * HR 通过专门的审计接口可查看未脱敏数据（记录审计日志）。
+     */
     public ResignationVO getMaskedDetail(Long id) {
         ResignationVO vo = getDetail(id);
-        // 脱敏：非HR/管理员角色隐藏敏感信息
-        // TODO: 根据 BaseContext 中角色判断是否脱敏
+        if (vo == null) return null;
+
+        // 获取关联员工的脱敏档案
+        Employee employee = employeeMapper.selectById(vo.getEmployeeId());
+        if (employee == null) return vo;
+
+        SensitiveFieldPolicy policy = SensitiveFieldPolicy.fromDataScope(BaseContext.getDataScope());
+
+        // HR/Admin 可查看完整信息（不脱敏）
+        if (policy == SensitiveFieldPolicy.SHOW_ALL) {
+            return vo;
+        }
+
+        // 其他角色：对离职员工的敏感字段执行脱敏
+        EmployeeVO maskedEmp = employeeService.toEmployeeVO(employee);
+        if (maskedEmp != null) {
+            employeeService.maskSensitiveFields(maskedEmp);
+        }
+
+        log.info("离职档案脱敏查询: id={}, employeeId={}, role={}",
+                id, vo.getEmployeeId(), BaseContext.getCurrentRoleCode());
         return vo;
     }
 

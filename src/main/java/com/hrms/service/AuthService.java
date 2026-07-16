@@ -3,8 +3,10 @@ package com.hrms.service;
 import com.hrms.common.constant.JwtClaimsConstant;
 import com.hrms.common.exception.BaseException;
 import com.hrms.dto.LoginDTO;
+import com.hrms.entity.Employee;
 import com.hrms.entity.SysRole;
 import com.hrms.entity.SysUser;
+import com.hrms.mapper.EmployeeMapper;
 import com.hrms.mapper.SysPermissionMapper;
 import com.hrms.mapper.SysRoleMapper;
 import com.hrms.mapper.SysUserMapper;
@@ -31,6 +33,8 @@ public class AuthService {
     private final SysUserMapper sysUserMapper;
     private final SysRoleMapper sysRoleMapper;
     private final SysPermissionMapper sysPermissionMapper;
+    private final EmployeeMapper employeeMapper;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
     @Value("${jwt.admin-secret-key}")
     private String secretKey;
@@ -63,6 +67,13 @@ public class AuthService {
             throw new BaseException(401, "用户名或密码错误");
         }
 
+        // 3.5 校验密码是否过期（超过90天未更换）
+        if (user.getPwdUpdateTime() != null
+                && user.getPwdUpdateTime().isBefore(java.time.LocalDateTime.now().minusDays(90))) {
+            log.warn("登录失败: 密码已过期 - {}", dto.getUsername());
+            throw new BaseException(426, "密码已过期，请修改密码后重新登录");
+        }
+
         // 4. 查询角色
         SysRole role = sysRoleMapper.findByUserId(user.getId());
         String roleCode = role != null ? role.getRoleCode() : "ROLE_EMPLOYEE";
@@ -79,26 +90,42 @@ public class AuthService {
             permissions = List.of("*"); // 通配符表示所有权限
         }
 
-        // 6. 生成 JWT Token
+        // 6. 关联员工档案
+        Employee employee = employeeMapper.selectByUserId(user.getId());
+        Long employeeId = employee != null ? employee.getId() : null;
+        Long deptId = employee != null ? employee.getDeptId() : null;
+
+        // 7. 生成 JWT Token
         Map<String, Object> claims = new HashMap<>();
         claims.put(JwtClaimsConstant.USER_ID, user.getId());
         claims.put(JwtClaimsConstant.USERNAME, user.getUsername());
-        claims.put(JwtClaimsConstant.EMPLOYEE_ID, null);  // 后续根据实际业务关联
+        claims.put(JwtClaimsConstant.EMPLOYEE_ID, employeeId);
         claims.put(JwtClaimsConstant.ROLE_CODE, roleCode);
         claims.put(JwtClaimsConstant.DATA_SCOPE, dataScope);
-        claims.put(JwtClaimsConstant.DEPT_ID, null);       // 后续根据实际业务关联
+        claims.put(JwtClaimsConstant.DEPT_ID, deptId);
         claims.put(JwtClaimsConstant.PERMISSIONS, String.join(",", permissions));
 
         String token = JwtUtil.createJWT(secretKey, ttlMillis, claims);
 
-        log.info("登录成功: username={}, role={}, permissions={}", user.getUsername(), roleCode, permissions);
+        log.info("登录成功: username={}, role={}, employeeId={}, permissions={}",
+                user.getUsername(), roleCode, employeeId, permissions);
+
+        // 7.5 创建会话（Redis记录活跃时间）
+        try {
+            if (redisTemplate != null) {
+                redisTemplate.opsForValue().set("session:active:" + user.getId(),
+                        System.currentTimeMillis(), 30, java.util.concurrent.TimeUnit.MINUTES);
+            }
+        } catch (Exception e) {
+            log.warn("创建会话失败(Redis不可用): userId={}", user.getId());
+        }
 
         // 7. 返回结果
         return LoginVO.builder()
                 .token(token)
                 .userId(user.getId())
                 .username(user.getUsername())
-                .employeeId(null)
+                .employeeId(employeeId)
                 .roleCode(roleCode)
                 .roleName(roleName)
                 .dataScope(dataScope)

@@ -25,6 +25,11 @@ public interface LeaveApplicationMapper {
     /** 根据员工ID统计请假记录数 */
     int countByEmployee(@Param("employeeId") Long employeeId);
 
+    /** 根据员工ID和时间范围查询请假记录（日历视图用） */
+    List<LeaveApplication> selectByEmployeeAndMonth(@Param("employeeId") Long employeeId,
+                                                     @Param("startDate") LocalDate startDate,
+                                                     @Param("endDate") LocalDate endDate);
+
     /** 根据状态查询 */
     List<LeaveApplication> selectByStatus(@Param("status") Integer status,
                                            @Param("offset") int offset,

@@ -218,4 +218,78 @@ public class DepartmentService {
         departmentMapper.deleteById(id);
         log.info("部门删除成功: id={}, name={}", id, dept.getDeptName());
     }
+
+    // ═══════════════ 部门合并 ═══════════════
+
+    /**
+     * 将源部门合并至目标部门。
+     * 事务内批量转移源部门所有在职员工至目标部门，源部门标记为已合并（status=2）。
+     *
+     * 合并前校验：
+     * 1. 源部门存在
+     * 2. 目标部门存在且层级不超过 MAX_DEPT_LEVEL
+     * 3. 源部门非目标部门祖先（防止循环引用）
+     */
+    @Transactional
+    public void mergeDepartments(Long sourceDeptId, Long targetDeptId) {
+        Department source = departmentMapper.selectById(sourceDeptId);
+        if (source == null) throw BaseException.notFound("源部门不存在");
+
+        Department target = departmentMapper.selectById(targetDeptId);
+        if (target == null) throw BaseException.notFound("目标部门不存在");
+
+        // 校验目标部门层级不超限
+        int targetLevel = getDeptLevel(target);
+        if (targetLevel >= MAX_DEPT_LEVEL) {
+            throw BaseException.badRequest("目标部门已是最大层级(" + MAX_DEPT_LEVEL + "级)，无法合并");
+        }
+
+        // 校验源部门非目标部门的祖先
+        if (isAncestor(sourceDeptId, targetDeptId)) {
+            throw BaseException.badRequest("不能将上级部门合并至下级部门");
+        }
+
+        // 批量转移员工
+        employeeMapper.updateDeptByDept(sourceDeptId, targetDeptId);
+
+        // 标记源部门为已合并
+        source.setStatus(2);
+        departmentMapper.update(source);
+
+        log.info("部门合并完成: sourceDeptId={}, targetDeptId={}", sourceDeptId, targetDeptId);
+    }
+
+    /**
+     * 获取部门含子部门的在职员工总数（递归）
+     */
+    public int getEmployeeCountRecursive(Long deptId) {
+        List<Long> deptIds = departmentMapper.selectSubDeptIdsRecursive(deptId);
+        deptIds.add(deptId);
+        return employeeMapper.countActiveByDeptIds(deptIds);
+    }
+
+    /** 获取部门层级深度 */
+    private int getDeptLevel(Department dept) {
+        int level = 1;
+        Long parentId = dept.getParentId();
+        while (parentId != null && parentId > 0) {
+            level++;
+            Department parent = departmentMapper.selectById(parentId);
+            if (parent == null) break;
+            parentId = parent.getParentId();
+        }
+        return level;
+    }
+
+    /** 判断 ancestorDeptId 是否是 descendantDeptId 的祖先 */
+    private boolean isAncestor(Long ancestorDeptId, Long descendantDeptId) {
+        Long parentId = descendantDeptId;
+        while (parentId != null && parentId > 0) {
+            if (parentId.equals(ancestorDeptId)) return true;
+            Department dept = departmentMapper.selectById(parentId);
+            if (dept == null) break;
+            parentId = dept.getParentId();
+        }
+        return false;
+    }
 }

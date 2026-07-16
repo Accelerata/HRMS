@@ -44,6 +44,7 @@
         <result column="early_count" property="earlyCount"/>
         <result column="absent_count" property="absentCount"/>
         <result column="warnings" property="warnings"/>
+        <result column="blockings" property="blockings"/>
         <result column="status" property="status"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
@@ -55,7 +56,7 @@
         <include refid="MoneyEncrypted"/>,
         probation_ratio,
         leave_days, overtime_hours, late_count, early_count, absent_count,
-        warnings, status, encryption_version,
+        warnings, blockings, status, encryption_version,
         create_time, update_time
     </sql>
 
@@ -68,7 +69,7 @@
             taxable_income, tax, other_deduction, net_pay,
             probation_ratio,
             leave_days, overtime_hours, late_count, early_count, absent_count,
-            warnings, status, encryption_version,
+            warnings, blockings, status, encryption_version,
             create_time, update_time
         ) VALUES (
             #{employeeId}, #{year}, #{month}, #{batchId},
@@ -85,7 +86,7 @@
             #{netPay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{probationRatio},
             #{leaveDays}, #{overtimeHours}, #{lateCount}, #{earlyCount}, #{absentCount},
-            #{warnings}, #{status}, 1,
+            #{warnings}, #{blockings}, #{status}, 1,
             NOW(), NOW()
         )
     </insert>
@@ -99,7 +100,7 @@
             taxable_income, tax, other_deduction, net_pay,
             probation_ratio,
             leave_days, overtime_hours, late_count, early_count, absent_count,
-            warnings, status, encryption_version,
+            warnings, blockings, status, encryption_version,
             create_time, update_time
         ) VALUES
         <foreach collection="list" item="item" separator=",">
@@ -118,7 +119,7 @@
             #{item.netPay, typeHandler=com.hrms.crypto.EncryptedBigDecimalTypeHandler},
             #{item.probationRatio},
             #{item.leaveDays}, #{item.overtimeHours}, #{item.lateCount}, #{item.earlyCount}, #{item.absentCount},
-            #{item.warnings}, #{item.status}, 1,
+            #{item.warnings}, #{item.blockings}, #{item.status}, 1,
             NOW(), NOW()
         )
         </foreach>
@@ -146,7 +147,7 @@
                <include refid="MoneyEncrypted"/>,
                sr.probation_ratio,
                sr.leave_days, sr.overtime_hours, sr.late_count, sr.early_count, sr.absent_count,
-               sr.warnings, sr.status, sr.encryption_version,
+               sr.warnings, sr.blockings, sr.status, sr.encryption_version,
                sr.create_time, sr.update_time
         FROM salary_record sr
         INNER JOIN employee e ON sr.employee_id = e.id

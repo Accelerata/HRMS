@@ -77,8 +77,11 @@ public class SalaryCalcResultVO {
 
     // ────────────── 预警 ──────────────
 
-    /** 预警标记列表 */
+    /** 预警标记列表（黄色/橙色，不会阻断审批） */
     private List<String> warnings;
+
+    /** 阻断标记列表（红色，必须修复后才能提交审批） */
+    private List<String> blockings;
 
     // ────────────── 个税明细 ──────────────
 

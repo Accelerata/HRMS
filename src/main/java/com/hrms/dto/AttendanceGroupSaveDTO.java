@@ -39,4 +39,27 @@ public class AttendanceGroupSaveDTO {
 
     /** 半天旷工阈值（分钟），默认120 */
     private Integer absentHalfDayThreshold;
+
+    // ── 新增字段 ──
+
+    /** 适用部门ID */
+    private Long deptId;
+
+    /** 适用职位ID */
+    private Long positionId;
+
+    /** 适用员工ID列表（逗号分隔） */
+    private String employeeIds;
+
+    /** 午休开始时间 */
+    private LocalTime lunchBreakStart;
+
+    /** 午休结束时间 */
+    private LocalTime lunchBreakEnd;
+
+    /** 迟到阈值（分钟，默认15） */
+    private Integer lateThresholdMinutes;
+
+    /** 早退阈值（分钟，默认15） */
+    private Integer earlyThresholdMinutes;
 }

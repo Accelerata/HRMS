@@ -32,8 +32,14 @@ public class PositionSaveDTO {
     @NotNull(message = "默认试用期不能为空")
     private Integer defaultProbationMonths;
 
+    /** 所属部门ID（为空表示全公司通用） */
+    private Long deptId;
+
     /** 职位描述 */
     private String description;
+
+    /** 是否标准职位：1-标准职位 0-非标准职位（非标准职位入职需HR二审） */
+    private Integer isStandard;
 
     /** 状态：0-禁用，1-正常 */
     private Integer status;

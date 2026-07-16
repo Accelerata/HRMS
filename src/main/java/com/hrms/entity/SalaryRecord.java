@@ -93,6 +93,13 @@ public class SalaryRecord {
     private String warnings;
 
     /**
+     * 阻断标记（逗号分隔的阻断编码）
+     * 例如: "BLOCK_NET_PAY_ZERO_OR_NEGATIVE,BLOCK_SALARY_ACCOUNT_MISSING"
+     * 存在阻断时不允许提交审批
+     */
+    private String blockings;
+
+    /**
      * 状态：
      * DRAFT - 草稿
      * CONFIRMED - 已确认

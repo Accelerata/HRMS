@@ -47,4 +47,12 @@
         UPDATE supplementary_card_application SET status = #{status}, update_time = NOW() WHERE id = #{id}
     </update>
 
+    <!-- 统计某员工某月补卡申请数 -->
+    <select id="countByEmployeeAndMonth" resultType="int">
+        SELECT COUNT(*) FROM supplementary_card_application
+        WHERE employee_id = #{employeeId}
+        AND YEAR(create_time) = #{year}
+        AND MONTH(create_time) = #{month}
+    </select>
+
 </mapper>

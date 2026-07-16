@@ -33,6 +33,16 @@
         SELECT COUNT(*) FROM leave_application WHERE employee_id = #{employeeId}
     </select>
 
+    <!-- 根据员工ID和日期范围查询请假记录（日历视图用） -->
+    <select id="selectByEmployeeAndMonth" resultMap="BaseResultMap">
+        SELECT * FROM leave_application
+        WHERE employee_id = #{employeeId}
+          AND status = 2  <!-- 仅已通过 -->
+          AND start_date &lt;= #{endDate}
+          AND end_date &gt;= #{startDate}
+        ORDER BY start_date ASC
+    </select>
+
     <select id="selectByStatus" resultMap="BaseResultMap">
         SELECT * FROM leave_application
         WHERE status = #{status}

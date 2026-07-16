@@ -34,6 +34,9 @@ public class Position {
     /** 默认试用期（月） */
     private Integer defaultProbationMonths;
 
+    /** 所属部门ID（为空表示全公司通用） */
+    private Long deptId;
+
     /** 职位描述 */
     private String description;
 

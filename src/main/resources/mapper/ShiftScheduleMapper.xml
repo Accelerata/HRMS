@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hrms.mapper.ShiftScheduleMapper">
+
+    <resultMap id="BaseResultMap" type="com.hrms.entity.ShiftSchedule">
+        <id column="id" property="id"/>
+        <result column="group_id" property="groupId"/>
+        <result column="day_of_week" property="dayOfWeek"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByGroupId" resultMap="BaseResultMap">
+        SELECT * FROM shift_schedule
+        WHERE group_id = #{groupId}
+        ORDER BY day_of_week ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM shift_schedule WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO shift_schedule (group_id, day_of_week, start_time, end_time, create_time, update_time)
+        VALUES (#{groupId}, #{dayOfWeek}, #{startTime}, #{endTime}, NOW(), NOW())
+    </insert>
+
+    <insert id="insertBatch" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO shift_schedule (group_id, day_of_week, start_time, end_time, create_time, update_time) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.groupId}, #{item.dayOfWeek}, #{item.startTime}, #{item.endTime}, NOW(), NOW())
+        </foreach>
+    </insert>
+
+    <update id="update">
+        UPDATE shift_schedule
+        SET group_id    = #{groupId},
+            day_of_week = #{dayOfWeek},
+            start_time  = #{startTime},
+            end_time    = #{endTime},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByGroupId">
+        DELETE FROM shift_schedule WHERE group_id = #{groupId}
+    </delete>
+
+    <delete id="deleteById">
+        DELETE FROM shift_schedule WHERE id = #{id}
+    </delete>
+
+</mapper>

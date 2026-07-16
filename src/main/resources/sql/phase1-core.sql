@@ -18,6 +18,7 @@ CREATE TABLE `department` (
     `level`           TINYINT      NOT NULL DEFAULT 1       COMMENT '层级深度（1-5）',
     `status`          TINYINT      NOT NULL DEFAULT 1       COMMENT '状态: 0-禁用 1-正常',
     `manager_id`      BIGINT       DEFAULT NULL             COMMENT '负责人ID（关联 employee.id）',
+    `description`     VARCHAR(500) DEFAULT NULL             COMMENT '部门描述/职能说明',
     `create_time`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`     DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -37,15 +38,18 @@ CREATE TABLE `position` (
     `position_name`              VARCHAR(64)  NOT NULL                 COMMENT '职位名称',
     `position_code`              VARCHAR(32)  NOT NULL                 COMMENT '职位编码',
     `sequence`                   VARCHAR(8)   NOT NULL                 COMMENT '职位序列: M-管理 P-专业 S-支持',
+    `dept_id`                    BIGINT       DEFAULT NULL             COMMENT '所属部门ID（为空=全公司通用）',
     `grade_range`                VARCHAR(16)  DEFAULT NULL             COMMENT '职级范围（如 P1-P5）',
     `default_probation_months`   TINYINT      NOT NULL DEFAULT 3       COMMENT '默认试用期（月）',
     `description`                VARCHAR(500) DEFAULT NULL             COMMENT '职位描述',
+    `is_standard`                TINYINT      NOT NULL DEFAULT 1       COMMENT '是否标准职位: 1-标准 0-非标准',
     `status`                     TINYINT      NOT NULL DEFAULT 1       COMMENT '状态: 0-禁用 1-正常',
     `create_time`                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`                DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE INDEX `uk_position_code` (`position_code`),
     INDEX `idx_sequence` (`sequence`),
+    INDEX `idx_dept_id` (`dept_id`),
     INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='职位表';
 
@@ -153,7 +157,7 @@ CREATE TABLE `attendance_record` (
     `punch_in_time`     TIME         DEFAULT NULL             COMMENT '上班打卡时间',
     `punch_out_time`    TIME         DEFAULT NULL             COMMENT '下班打卡时间',
     `punch_in_status`   VARCHAR(32)  NOT NULL DEFAULT 'NORMAL' COMMENT '上班打卡状态: NORMAL/LATE/MISSING_PUNCH/ABSENT_HALF_DAY',
-    `punch_out_status`  VARCHAR(32)  NOT NULL DEFAULT 'NORMAL' COMMENT '下班打卡状态: NORMAL/EARLY/MISSING_PUNCH/ABSENT_HALF_DAY',
+    `punch_out_status`  VARCHAR(32)  DEFAULT NULL             COMMENT '下班打卡状态: NORMAL/EARLY/MISSING_PUNCH/ABSENT_HALF_DAY（上班打卡时为空）',
     `create_time`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`       DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -234,16 +238,16 @@ CREATE TABLE `overtime_record` (
 -- ═══════════════════════════════════════════════════
 
 -- 默认根部门
-INSERT INTO `department` (`parent_id`, `dept_name`, `dept_code`, `sort_order`, `level`, `status`, `manager_id`, `create_time`, `update_time`)
-VALUES (0, '总公司', 'ROOT', 1, 1, 1, NULL, NOW(), NOW());
+INSERT INTO `department` (`parent_id`, `dept_name`, `dept_code`, `sort_order`, `level`, `status`, `manager_id`, `description`, `create_time`, `update_time`)
+VALUES (0, '总公司', 'ROOT', 1, 1, 1, NULL, '公司总部，统筹管理全公司业务', NOW(), NOW());
 
 -- 默认职位（覆盖 M/P/S 序列）
-INSERT INTO `position` (`position_name`, `position_code`, `sequence`, `grade_range`, `default_probation_months`, `description`, `status`, `create_time`, `update_time`) VALUES
-('总经理',       'M5', 'M', 'M4-M5', 6, '公司最高管理者',       1, NOW(), NOW()),
-('部门经理',     'M3', 'M', 'M2-M3', 3, '部门负责人',           1, NOW(), NOW()),
-('HR主管',       'P4', 'P', 'P3-P5', 3, '人力资源主管',         1, NOW(), NOW()),
-('高级工程师',   'P3', 'P', 'P1-P5', 3, '软件开发高级岗',       1, NOW(), NOW()),
-('行政专员',     'S2', 'S', 'S1-S3', 3, '行政支持岗',           1, NOW(), NOW());
+INSERT INTO `position` (`position_name`, `position_code`, `sequence`, `grade_range`, `default_probation_months`, `dept_id`, `description`, `is_standard`, `status`, `create_time`, `update_time`) VALUES
+('总经理',       'M5', 'M', 'M4-M5', 6, NULL, '公司最高管理者',       1, 1, NOW(), NOW()),
+('部门经理',     'M3', 'M', 'M2-M3', 3, NULL, '部门负责人',           1, 1, NOW(), NOW()),
+('HR主管',       'P4', 'P', 'P3-P5', 3, NULL, '人力资源主管',         1, 1, NOW(), NOW()),
+('高级工程师',   'P3', 'P', 'P1-P5', 3, NULL, '软件开发高级岗',       1, 1, NOW(), NOW()),
+('行政专员',     'S2', 'S', 'S1-S3', 3, NULL, '行政支持岗',           1, 1, NOW(), NOW());
 
 -- 默认考勤组（标准固定班 9:00-18:00，迟到宽限30分钟，半天旷工阈值120分钟）
 INSERT INTO `attendance_group` (`group_name`, `group_type`, `start_time`, `end_time`, `flex_threshold`, `absent_half_day_threshold`, `create_time`, `update_time`)

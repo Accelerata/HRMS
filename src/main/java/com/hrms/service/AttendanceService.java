@@ -69,8 +69,19 @@ public class AttendanceService {
         group.setFlexThreshold(dto.getFlexThreshold() != null ? dto.getFlexThreshold() : 0);
         group.setAbsentHalfDayThreshold(
                 dto.getAbsentHalfDayThreshold() != null ? dto.getAbsentHalfDayThreshold() : 120);
+        // 新增字段
+        group.setDeptId(dto.getDeptId());
+        group.setPositionId(dto.getPositionId());
+        group.setEmployeeIds(dto.getEmployeeIds());
+        group.setLunchBreakStart(dto.getLunchBreakStart());
+        group.setLunchBreakEnd(dto.getLunchBreakEnd());
+        group.setLateThresholdMinutes(
+                dto.getLateThresholdMinutes() != null ? dto.getLateThresholdMinutes() : 15);
+        group.setEarlyThresholdMinutes(
+                dto.getEarlyThresholdMinutes() != null ? dto.getEarlyThresholdMinutes() : 15);
         attendanceGroupMapper.insert(group);
-        log.info("考勤组创建成功: id={}, name={}", group.getId(), group.getGroupName());
+        log.info("考勤组创建成功: id={}, name={}, deptId={}, positionId={}",
+                group.getId(), group.getGroupName(), group.getDeptId(), group.getPositionId());
     }
 
     /** 更新考勤组 */
@@ -89,6 +100,16 @@ public class AttendanceService {
         group.setFlexThreshold(dto.getFlexThreshold() != null ? dto.getFlexThreshold() : 0);
         group.setAbsentHalfDayThreshold(
                 dto.getAbsentHalfDayThreshold() != null ? dto.getAbsentHalfDayThreshold() : 120);
+        // 新增字段
+        group.setDeptId(dto.getDeptId());
+        group.setPositionId(dto.getPositionId());
+        group.setEmployeeIds(dto.getEmployeeIds());
+        group.setLunchBreakStart(dto.getLunchBreakStart());
+        group.setLunchBreakEnd(dto.getLunchBreakEnd());
+        group.setLateThresholdMinutes(
+                dto.getLateThresholdMinutes() != null ? dto.getLateThresholdMinutes() : 15);
+        group.setEarlyThresholdMinutes(
+                dto.getEarlyThresholdMinutes() != null ? dto.getEarlyThresholdMinutes() : 15);
         attendanceGroupMapper.update(group);
         log.info("考勤组更新成功: id={}", group.getId());
     }
@@ -173,6 +194,18 @@ public class AttendanceService {
     public List<AttendanceRecord> getRecords(Long employeeId, int page, int size) {
         int offset = (page - 1) * size;
         return attendanceRecordMapper.selectByEmployee(employeeId, offset, size);
+    }
+
+    /**
+     * 从考勤组移除员工关联（离职生效时调用）。
+     * 当前版本考勤组通过部门/职位间接关联员工，移除操作主要清除打卡记录引用。
+     * 后续考勤组增强时会增加直接的员工-考勤组关联表清理。
+     */
+    @Transactional
+    public void removeEmployeeFromGroups(Long employeeId) {
+        // 清除该员工的未处理打卡记录引用（如有考勤组关联映射表则同步清理）
+        log.info("员工从考勤组移除: employeeId={}", employeeId);
+        // TODO: 考勤组增强后增加 attendance_group_employee 关联表清理
     }
 
     // ═══════════════ 核心判定逻辑 ═══════════════

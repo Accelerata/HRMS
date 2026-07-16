@@ -29,4 +29,9 @@ public interface SupplementaryCardMapper {
 
     /** 更新状态 */
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    /** 统计某员工某月补卡申请数（含审批中和已通过） */
+    int countByEmployeeAndMonth(@Param("employeeId") Long employeeId,
+                                @Param("year") int year,
+                                @Param("month") int month);
 }

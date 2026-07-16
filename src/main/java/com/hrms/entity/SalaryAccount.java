@@ -36,6 +36,8 @@ public class SalaryAccount {
     private LocalDate effectiveStartDate;
     /** 档案生效结束日期（NULL=至今有效） */
     private LocalDate effectiveEndDate;
+    /** 薪资核算截止日期（离职时标记，次月起不再核算） */
+    private LocalDate salaryEndDate;
     /** 调薪原因 */
     private String changeReason;
     /** 操作人ID */

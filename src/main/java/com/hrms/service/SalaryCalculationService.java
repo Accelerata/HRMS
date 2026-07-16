@@ -87,8 +87,11 @@ public class SalaryCalculationService {
                 .max(BigDecimal.ZERO)
                 .setScale(SCALE, RoundingMode.HALF_UP);
 
-        // ── 步骤9: 预警检测 ──
+        // ── 步骤9: 预警检测（黄色/橙色） ──
         List<String> warnings = detectWarnings(input, netPay);
+
+        // ── 步骤10: 阻断检测（红色，必须修复） ──
+        List<String> blockings = detectBlockings(input, grossPay, netPay);
 
         // ── 组装结果 ──
         return SalaryCalcResultVO.builder()
@@ -113,6 +116,7 @@ public class SalaryCalculationService {
                 .earlyCount(input.getEarlyCount() != null ? input.getEarlyCount() : 0)
                 .absentCount(input.getAbsentDays() != null ? input.getAbsentDays() : BigDecimal.ZERO)
                 .warnings(warnings)
+                .blockings(blockings)
                 .cumulativeTaxableIncome(taxResult.cumulativeTaxableIncome)
                 .taxRate(taxResult.taxRate)
                 .quickDeduction(taxResult.quickDeduction)
@@ -321,7 +325,7 @@ public class SalaryCalculationService {
     }
 
     // ══════════════════════════════════════════════════════
-    // 预警检测
+    // 预警检测（黄色/橙色，不阻断审批）
     // ══════════════════════════════════════════════════════
 
     private List<String> detectWarnings(SalaryCalcDTO input, BigDecimal netPay) {
@@ -353,5 +357,53 @@ public class SalaryCalculationService {
         }
 
         return warnings;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // 阻断检测（红色，必须修复后才能提交审批）
+    // ══════════════════════════════════════════════════════
+
+    /**
+     * 检测红色阻断级别的异常。
+     * 阻断异常会阻止薪资批次提交审批，必须修复后重新核算。
+     *
+     * @param input    薪资计算输入
+     * @param grossPay 应发合计
+     * @param netPay   实发工资
+     * @return 阻断原因列表，空列表表示无阻断
+     */
+    public List<String> detectBlockings(SalaryCalcDTO input, BigDecimal grossPay, BigDecimal netPay) {
+        List<String> blockings = new ArrayList<>();
+
+        // 阻断1: 实发工资 <= 0（员工拿不到钱）
+        if (netPay.compareTo(BigDecimal.ZERO) <= 0) {
+            blockings.add(SalaryWarningConstants.BLOCK_NET_PAY_ZERO_OR_NEGATIVE);
+        }
+
+        // 阻断2: 应发工资为0（基本工资+岗位工资可能配置错误）
+        if (grossPay.compareTo(BigDecimal.ZERO) <= 0) {
+            blockings.add(SalaryWarningConstants.BLOCK_GROSS_PAY_ZERO);
+        }
+
+        // 阻断3: 基本工资为空或为零（薪资账套可能未正确配置）
+        if (input.getBasicSalary() == null || input.getBasicSalary().compareTo(BigDecimal.ZERO) <= 0) {
+            blockings.add(SalaryWarningConstants.BLOCK_SALARY_ACCOUNT_MISSING);
+        }
+
+        return blockings;
+    }
+
+    /**
+     * 检查计算结果是否包含阻断异常
+     */
+    public boolean hasBlockings(SalaryCalcResultVO result) {
+        return result.getBlockings() != null && !result.getBlockings().isEmpty();
+    }
+
+    /**
+     * 检查计算结果是否包含预警
+     */
+    public boolean hasWarnings(SalaryCalcResultVO result) {
+        return result.getWarnings() != null && !result.getWarnings().isEmpty();
     }
 }

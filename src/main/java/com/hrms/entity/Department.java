@@ -36,6 +36,9 @@ public class Department {
     /** 负责人ID（关联 employee.id） */
     private Long managerId;
 
+    /** 部门描述（职能说明，最多500字符） */
+    private String description;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

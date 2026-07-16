@@ -3,6 +3,8 @@ package com.hrms.mapper;
 import com.hrms.entity.SysUser;
 import org.apache.ibatis.annotations.*;
 
+import java.util.List;
+
 /**
  * 系统用户 Mapper
  */
@@ -42,5 +44,10 @@ public interface SysUserMapper {
             "force_change_pwd = #{forceChangePwd}, pwd_update_time = #{pwdUpdateTime}, " +
             "last_login_time = #{lastLoginTime}, update_time = NOW() WHERE id = #{id}")
     int update(SysUser user);
+
+    /** 按密码更新时间范围查找用户（用于密码到期提醒） */
+    @Select("SELECT * FROM sys_user WHERE pwd_update_time >= #{start} AND pwd_update_time <= #{end} AND status = 1")
+    List<SysUser> findByPwdUpdateTimeBetween(@Param("start") java.time.LocalDateTime start,
+                                              @Param("end") java.time.LocalDateTime end);
 }
 

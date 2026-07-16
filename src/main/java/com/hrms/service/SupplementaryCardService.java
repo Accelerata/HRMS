@@ -71,7 +71,15 @@ public class SupplementaryCardService {
                     + "卡并非缺卡状态，无需补卡");
         }
 
-        // 2. 防重复申请
+        // 2. 每月最多2次补卡限制
+        int currentMonthCount = cardMapper.countByEmployeeAndMonth(
+                employee.getId(), dto.getAttendanceDate().getYear(),
+                dto.getAttendanceDate().getMonthValue());
+        if (currentMonthCount >= 2) {
+            throw BaseException.badRequest("每月最多申请 2 次补卡，本月已达上限");
+        }
+
+        // 3. 防重复申请
         int active = cardMapper.countActiveByEmployeeDateType(
                 employee.getId(), dto.getAttendanceDate(), dto.getCardType());
         if (active > 0) {

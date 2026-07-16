@@ -19,6 +19,9 @@ public interface EmployeeMapper {
     /** 根据ID查询员工 */
     Employee selectById(@Param("id") Long id);
 
+    /** 根据关联用户ID查询员工 */
+    Employee selectByUserId(@Param("userId") Long userId);
+
     /** 根据工号查询 */
     Employee selectByEmployeeNo(@Param("employeeNo") String employeeNo);
 
@@ -97,4 +100,23 @@ public interface EmployeeMapper {
 
     /** 软删除员工（标记为已离职） */
     int deleteById(@Param("id") Long id);
+
+    /** 批量转移部门（部门合并时使用） */
+    int updateDeptByDept(@Param("sourceDeptId") Long sourceDeptId,
+                         @Param("targetDeptId") Long targetDeptId);
+
+    /** 统计指定部门列表中的在职员工数（试用期+正式） */
+    int countActiveByDeptIds(@Param("deptIds") List<Long> deptIds);
+
+    // ────────────── 高级搜索 ──────────────
+
+    /** 高级搜索（多条件组合查询） */
+    List<EmployeeListVO> selectByConditions(@Param("dto") com.hrms.dto.EmployeeQueryDTO dto,
+                                            @Param("phoneHash") String phoneHash,
+                                            @Param("offset") int offset,
+                                            @Param("size") int size);
+
+    /** 高级搜索总数 */
+    int countByConditions(@Param("dto") com.hrms.dto.EmployeeQueryDTO dto,
+                          @Param("phoneHash") String phoneHash);
 }

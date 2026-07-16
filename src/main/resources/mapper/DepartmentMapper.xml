@@ -12,6 +12,7 @@
         <result column="level" property="level"/>
         <result column="status" property="status"/>
         <result column="manager_id" property="managerId"/>
+        <result column="description" property="description"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -47,8 +48,8 @@
 
     <!-- 插入 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO department (parent_id, dept_name, dept_code, sort_order, level, status, manager_id, create_time, update_time)
-        VALUES (#{parentId}, #{deptName}, #{deptCode}, #{sortOrder}, #{level}, #{status}, #{managerId}, NOW(), NOW())
+        INSERT INTO department (parent_id, dept_name, dept_code, sort_order, level, status, manager_id, description, create_time, update_time)
+        VALUES (#{parentId}, #{deptName}, #{deptCode}, #{sortOrder}, #{level}, #{status}, #{managerId}, #{description}, NOW(), NOW())
     </insert>
 
     <!-- 更新 -->
@@ -61,6 +62,7 @@
             level        = #{level},
             status       = #{status},
             manager_id   = #{managerId},
+            description  = #{description},
             update_time  = NOW()
         WHERE id = #{id}
     </update>
@@ -82,6 +84,17 @@
         SELECT COUNT(*) FROM department
         WHERE dept_name = #{deptName} AND parent_id = #{parentId}
         <if test="excludeId != null">AND id != #{excludeId}</if>
+    </select>
+
+    <!-- 递归查询子部门ID列表（CTE递归） -->
+    <select id="selectSubDeptIdsRecursive" resultType="java.lang.Long">
+        WITH RECURSIVE dept_tree AS (
+            SELECT id, parent_id FROM department WHERE id = #{deptId}
+            UNION ALL
+            SELECT d.id, d.parent_id FROM department d
+            INNER JOIN dept_tree dt ON d.parent_id = dt.id
+        )
+        SELECT id FROM dept_tree WHERE id != #{deptId}
     </select>
 
 </mapper>
